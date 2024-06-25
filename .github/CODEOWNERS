@@ -1,0 +1,4 @@
+# This is a CODEOWNERS file.
+
+# Specify that all files in the repository require approval from Vineet / Dhiren / Ashutosh
+* @dhirenmathur @vineetshar @cash1998
