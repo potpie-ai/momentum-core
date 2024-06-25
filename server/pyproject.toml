@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "momentum-srv"
+version = "0.0.1"
+description = ""
+authors = ["Dhiren Mathur <dhiru17398@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+typer = "0.9.0"
+simple-graph-sqlite = "2.1.0"
+tree-sitter-languages = "1.10.2"
+fastapi = "0.109.0"
+uvicorn = "0.27.0"
+langchain = "*"
+langchain-community = "*"
+langchain-openai = "*"
+langchain-experimental = "*"
+crewai = "0.19.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
