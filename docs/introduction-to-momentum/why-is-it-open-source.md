@@ -1,7 +1,7 @@
 # Momentum
 
  ## Why is it Open Source?
-
+ 
  Momentum is open source as a way for us to give back to the community. By making the source code available, we empower our users to:
 
  - **View the Source Code:** Understand how Momentum works under the hood.
@@ -13,6 +13,7 @@
 
  ## Contact
 
- If you have any questions, feel free to open an issue.
+ If you have any questions, feel free to open an issue on github.
 
  Thank you for contributing to Momentum!
+
