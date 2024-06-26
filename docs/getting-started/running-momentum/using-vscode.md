@@ -1,6 +1,6 @@
 # Using VSCode
 
-To run using vscode, add the following launch.json to .vscode&#x20;
+To run using vscode, add the following launch.json to .vscode. You can also find this in .vscode/launch.json.template in our repo.
 
 ```
 {
@@ -27,12 +27,7 @@ To run using vscode, add the following launch.json to .vscode&#x20;
                 "GITHUB_PRIVATE_KEY":"",
                 "GITHUB_APP_ID":"", 
                 "GCP_PROJECT":"",
-                "POSTGRES_DB": "dbname",
-                "POSTGRES_USER": "postgres",
-                "POSTGRES_PASSWORD": "mysecretpassword",
                 "POSTGRES_SERVER": "postgresql://postgres:mysecretpassword@localhost:5432/dbname",
-                "POSTGRES_HOST":"localhost",
-                "POSTGRES_PORT":"5432",
                 "NEO4J_URI": "bolt://localhost:7687",
                 "NEO4J_USERNAME": "neo4j",
                 "NEO4J_PASSWORD": "mysecretpassword",
