@@ -2,7 +2,7 @@
 
 Momentum is open source as a way for us to give back to the community. By making the source code available, we empower our users to:
 
-* **View the Source Code:** Understand how Momentum works under the hood.
+* [**View the Source Code**](https://github.com/getmomentum/momentum-core)**:** Understand how Momentum works under the hood.
 * **Modify It:** Tailor Momentum to meet their specific needs.
 * **Use It Freely:** Integrate Momentum into their projects without restrictions.
 * **Contribute:** Improve Momentum by submitting pull requests with their enhancements, benefiting the entire community.

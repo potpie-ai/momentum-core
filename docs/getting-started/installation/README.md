@@ -5,15 +5,15 @@
 First, clone our repository to your local machine using Git:
 
 ```bash
-git clone https://github.com/getmomentum/momentum-srv
-cd momentum-srv
+git clone https://github.com/getmomentum/momentum-core
+cd momentum-core
 ```
 
-**Step 2: Create a virutal enviorment**&#x20;
+**Step 2: Create a virutal enviorment**
 
 We strongly recommend running the app in a virtual enviorment, if you want to have a look at multiple reasons of why that is the case, read this [reddit](https://www.reddit.com/r/learnpython/comments/15nuehj/why\_do\_i\_need\_a\_virtual\_environment/) thread.
 
-How to create virtual enviorment &#x20;
+How to create virtual enviorment
 
 ```
 python3 -m venv venv
