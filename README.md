@@ -1,4 +1,47 @@
-# Momentum
+<div align="center">
+  <a href="https://momentum.sh?utm_source=github" target="_blank">
+    <source media="(prefers-color-scheme: dark)">
+    <img alt="Momentum Logo" src="https://github.com/getmomentum/momentum-core/assets/19893222/285fe228-770e-43ed-9eb8-968d46eaafeb" width="280"/>
+  </a>
+</div>
+
+<br/>
+
+<p align="center">
+  <a href="https://pypi.org/project/momentum-cli/">
+    <img src="https://img.shields.io/pypi/v/momentum-cli" alt="pypi package">
+  </a>
+  <a href="https://github.com/getmomentum/momentum-core/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/getmomentum/momentum-core" alt="Apache 2.0">
+  </a>
+</p>
+
+<h1 align="center">
+  The open-source behavioural auditor for backend code
+</h1>
+
+<div align="center">
+  From git push to production-ready: See the unseen, test the untested
+</div>
+
+<p align="center">
+  <br />
+  <a href="https://docs.momentum.sh" rel="dofollow"><strong>Explore the docs »</strong></a>
+  <br />
+
+<br/>
+  <a href="https://github.com/getmomentum/momentum-core/issues/new?assignees=&labels=type%3A+bug&template=bug_report.yml&title=%F0%9F%90%9B+Bug+Report%3A+">Report Bug</a>
+  ·
+  <a href="https://github.com/getmomentum/momentum-core/issues/new?assignees=&labels=feature&template=feature_request.yml&title=%F0%9F%9A%80+Feature%3A+">Request Feature</a>
+  ·
+<a href="https://discord.gg/z6tj9Ufc">Join Our Discord</a>
+  ·
+  <a href="https://momentum.sh">Roadmap</a>
+  ·
+  <a href="https://twitter.com/momentumdotsh">X</a>
+  
+</p>
+
 
 Momentum is an open-source tool designed to generate and understand powerful insights into your codebase. It helps you understand changes and impacts, generate test behaviours and test code and much more. 
 
@@ -129,3 +172,9 @@ Refer to the [Contributing Guide](https://docs.momentum.sh/introduction-to-momen
 ## License
 
 This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+
+## 💪 Thanks To All Contributors
+
+Thanks a lot for spending your time helping build momentnum. Keep rocking 🥂
+
+<img src="https://contributors-img.web.app/image?repo=getmomentum/momentum-core" alt="Contributors"/>
