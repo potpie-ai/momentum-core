@@ -18,10 +18,13 @@ It understands your backend codebase and generates visualisation and precise con
 
 ## Features
 
-- **Codebase Understanding**: Analyze and extract valuable information about your system from your code.
-- **Blast Radius**: Understand the potential impacts of changes.
-- **Test Generation**: Automatically generate test plans and test cases.
+<img title="momentum-features" alt="features" src="https://github.com/getmomentum/momentum-core/assets/19893222/b1d5164f-c348-4bf5-978d-6dbaf16c5cbd">
+
+- **Blast Radius**: This will be a list of endpoints that could potentially be affected by the changes you made in your code. This will also be a starting point to decide what parts of your code need to be tested before shipping to production..
 - **Dependency Visualization**: Visualize code dependencies and relationships.
+- **Behaviour identification**: Automatically identify behaviors written in your code and generate a plan to test their functionality
+- **Code generation to test functionality**: Generate code to test all behaviors identified and run it in your local environment through momentum
+
 
 ## Installation
 
