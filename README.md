@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://momentum.sh?utm_source=github" target="_blank">
-    <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/2233092/213641039-220ac15f-f367-4d13-9eaf-56e79433b8c1.png">
+    <source media="(prefers-color-scheme: dark)">
     <img alt="Momentum Logo" src="https://github.com/getmomentum/momentum-core/assets/19893222/285fe228-770e-43ed-9eb8-968d46eaafeb" width="280"/>
   </a>
 </div>
@@ -8,7 +8,7 @@
 <br/>
 
 <p align="center">
-  <a href="[https://pypi.org/project/momentum-cli/](https://pypi.org/project/momentum-cli/)">
+  <a href="https://pypi.org/project/momentum-cli/">
     <img src="https://img.shields.io/pypi/v/momentum-cli" alt="pypi package">
   </a>
   <a href="https://github.com/getmomentum/momentum-core/blob/main/LICENSE">
@@ -17,11 +17,11 @@
 </p>
 
 <h1 align="center">
-  The open-source testing infrastructure for developers :placeholder:
+  The open-source behavioural auditor for backend code
 </h1>
 
 <div align="center">
-  blah blhadf agdjsgkj
+  From git push to production-ready: See the unseen, test the untested
 </div>
 
 <p align="center">
