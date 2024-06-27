@@ -26,13 +26,6 @@ It understands your backend codebase and generates visualisation and precise con
 - **Code generation to test functionality**: Generate code to test all behaviors identified and run it in your local environment through momentum
 
 
-
-Code generation to test functionality
-
-Debugging (using stack trace)
-
-Self-healing (simple cases)
-
 ## Installation
 
 To get started with Momentum, follow these steps:
