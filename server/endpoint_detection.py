@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -32,39 +33,8 @@ class EndpointManager:
         self.router_prefix_file_mapping = router_prefix_file_mapping
         self.file_index = file_index
 
-    # SQLite database setup
 
-    def setup_database(self):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        try:
-            # Create table if it doesn't exist
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS endpoints (
-                    path TEXT, 
-                    identifier TEXT,
-                    test_plan TEXT,
-                    preferences TEXT,
-                    project_id integer NOT NULL,
-                    PRIMARY KEY (project_id, identifier),
-                    CONSTRAINT fk_project FOREIGN KEY (project_id)
-                    REFERENCES projects (id)
-                    ON DELETE CASCADE
-
-                )
-            """)
-
-            # Commit the transaction
-            conn.commit()
-        except psycopg2.Error as e:
-            print(f"PostgreSQL error: {e}")
-        finally:
-            # Close the connection
-            if conn:
-                cursor.close()
-                conn.close()
-
-
+    
     def extract_path(self, decorator):
         # Find the position of the first opening parenthesis and the following comma
         start = decorator.find("(") + 1
@@ -472,8 +442,8 @@ class EndpointManager:
 
         return function_name, parameters, start, end, text
 
-    def analyse_endpoints(self, project_id):
-        self.setup_database()
+    async def analyse_endpoints(self, project_id, user_id):
+        
         conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
         cursor = conn.cursor()
         detected_endpoints = []
@@ -512,6 +482,9 @@ class EndpointManager:
                 )
 
         conn.close()
+        from server.knowledge_graph.flow import understand_flows
+
+        asyncio.create_task(understand_flows(project_id, self.directory, user_id))
 
     def get_qualified_endpoint_name(self, path, prefix):
         if prefix == None:

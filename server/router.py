@@ -11,7 +11,6 @@ from fastapi import Depends, HTTPException
 from server.utils.APIRouter import APIRouter
 from fastapi.requests import Request
 from github import Github
-from github.GithubException import UnknownObjectException
 from server.models.repo_details import (
     PreferenceDetails,
     ProjectStatusEnum,
@@ -33,7 +32,7 @@ from server.change_detection import get_updated_function_list
 from server.blast_radius_detection import get_paths_from_identifiers
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
-from server.utils.parse_helper import setup_project_directory, reparse_cleanup
+from server.utils.parse_helper import setup_project_directory, delete_folder, reparse_cleanup
 from server.dependencies import Dependencies
 from server.auth import check_auth
 from server.test_agent.crew import GenerateTest
@@ -50,7 +49,7 @@ neo4j_graph = Neo4jGraph()
 
 
 @api_router.post("/parse")
-def parse_directory(
+async def parse_directory(
     request: Request, repo_branch: RepoDetails, user=Depends(check_auth)
 ):
     dir_details = ""
@@ -82,7 +81,7 @@ def parse_directory(
             dir_details, project_id = setup_project_directory(
                 owner, repo_name, branch_name, app_auth, repo, user_id, project_id
             )
-            analyze_directory(dir_details, user_id, project_id)
+            await analyze_directory(dir_details, user_id, project_id)
             new_project = True
             message = "The project has been parsed successfully"
         else:
@@ -93,7 +92,7 @@ def parse_directory(
                 dir_details, project_id = setup_project_directory(owner, repo_name,
                                                                   branch_name, app_auth, repo, user_id,
                                                                   project_id)
-                analyze_directory(dir_details, user_id, project_id)
+                await analyze_directory(dir_details, user_id, project_id)
                 new_project = False
                 message = "The project has been re-parsed successfully"
             else:
@@ -236,7 +235,7 @@ def get_dependencies(
 
 
 @api_router.get("/endpoints/dependencies/more")
-def get_more_dependencies_ai(
+async def get_more_dependencies_ai(
     project_id: int, endpoint_id: str, user=Depends(check_auth)
 ):
     user_id = user["user_id"]
@@ -244,7 +243,7 @@ def get_more_dependencies_ai(
         project_id, user_id
     )
     if project_details is not None:
-        graph_structure = Dependencies(user["user_id"]).get_dependencies(
+        graph_structure = await Dependencies(user["user_id"]).get_dependencies(
             project_details, endpoint_id
         )
         return graph_structure
@@ -397,7 +396,8 @@ async def generate_test(
                 endpoint_path,
                 str(test_plan),
                 user["user_id"],
-                project_details[1],
+                project_dir,
+                project_id
             ).write_tests(identifier, preferences, no_of_test_generated, project_details, user_id)
         else:
             raise HTTPException(

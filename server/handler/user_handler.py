@@ -2,7 +2,7 @@ from loguru import logger
 
 from server.db.session import SessionManager
 from server.models.user import CreateUser
-from server.schema.users import User
+from server.schemas.users import User
 
 
 class UserHandler:

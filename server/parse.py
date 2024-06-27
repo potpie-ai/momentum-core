@@ -104,14 +104,11 @@ def put_pydantic_class(filepath, classname, definition, project_id):
             conn.close()
 
 
-def get_pydantic_class(classname):
+def get_pydantic_class(classname, project_id):
     conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            "SELECT filepath, definition FROM pydantic WHERE classname ="
-            f" '{classname}'"
-        )
+        cursor.execute("SELECT filepath, definition FROM pydantic WHERE project_id=%s AND classname = %s", (project_id, classname))
         conn.commit()
 
     except psycopg2.Error as e:
@@ -129,17 +126,14 @@ def get_pydantic_class(classname):
     return edited_definitions
 
 
-def get_pydantic_classes(classnames, directory):
+def get_pydantic_classes(classnames, project_id):
     try:
         conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
         cursor = conn.cursor()
         definitions = []
-        placeholders = ", ".join("%s" for classname in classnames)
-        query = (
-            "SELECT filepath, classname, definition FROM pydantic WHERE"
-            f" classname IN ({placeholders})"
-        )
-        cursor.execute(query, classnames)
+        placeholders = ', '.join('%s' for classname in classnames)
+        query = f"SELECT filepath, classname, definition FROM pydantic WHERE project_id=%s AND classname IN ({placeholders})"
+        cursor.execute(query, (project_id, *classnames))
         definitions.extend(cursor.fetchall())
     except psycopg2.Error as e:
         print("An error occurred: 8", e)
@@ -183,16 +177,12 @@ def add_node_safe(
             project_id,
         )
     except psycopg2.IntegrityError:
-        print(
-            f"Node with identifier {function_identifier} already exists."
-            " Skipping insert."
-        )
+        print(f"Node with identifier {function_identifier} already exists. Skipping insert.")
+    return function_identifier 
 
 
-def add_class_node_safe(
-    directory, file_path, class_name, start, end, project_id
-):
-    function_identifier = file_path.replace(directory, "") + ":" + class_name
+def add_class_node_safe(directory, file_path, class_name, start, end, project_id):
+    function_identifier = file_path.replace(directory, '') + ":" + class_name
     try:
         neo4j_graph.upsert_node(
             function_identifier,
@@ -205,10 +195,8 @@ def add_class_node_safe(
             project_id,
         )
     except psycopg2.IntegrityError:
-        print(
-            f"Node with identifier {function_identifier} already exists."
-            " Skipping insert."
-        )
+        print(f"Node with identifier {function_identifier} already exists. Skipping insert.")
+    return function_identifier
 
 
 def get_node_text(node, source_code):
@@ -906,7 +894,7 @@ def extract_function_metadata(node, parameters=[], class_context=None):
 
 
 # todo: optimise for single run
-def analyze_directory(directory, user_id, project_id):
+async def analyze_directory(directory, user_id, project_id):
     _create_pydantic_table(directory)
     _create_explanation_table_if_not_exists(directory)
     user_defined_functions = {}
@@ -1028,9 +1016,9 @@ def analyze_directory(directory, user_id, project_id):
                             }
 
     (
-        EndpointManager(
+        await EndpointManager(
              directory, router_metadata_file_mapping, file_index
-        ).analyse_endpoints(project_id)
+        ).analyse_endpoints(project_id, user_id)
     )
     delete_folder(directory)
 
@@ -1042,12 +1030,11 @@ def get_code_flow_by_id(endpoint_id, project_id):
         endpoint_id, project_id, with_bodies=True
     )
     for node in nodes_pro:
-        if "code" in node:
-            if "file" in json.loads(node[2]):
-                code += (
+        if "file" in json.loads(node[2]):
+            code += (
                     f"File: {json.loads(node[2])['file'].replace(dir, '')}\n"
                 )
-            code += json.loads(node[2])["code"] + "\n"
+            code += GithubService.fetch_method_from_repo(node[2]) + "\n"
     return code
 
 
@@ -1110,6 +1097,8 @@ def get_code_for_function(function_identifier):
 def get_node(function_identifier, project_details):
     return neo4j_graph.get_node_by_id(function_identifier, project_details[2])
 
+def get_node_by_id(node_id, project_id):
+    return neo4j_graph.get_node_by_id(node_id, project_id)
 
 def get_values(repo_branch, project_manager, user_id):
     repo_name = repo_branch.repo_name.split("/")[-1]

@@ -1,11 +1,10 @@
 from enum import Enum
 from sqlalchemy import TIMESTAMP, Boolean, CheckConstraint, Column, Integer, String, Text
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKeyConstraint
 from sqlalchemy.sql import func
 from server.models.repo_details import ProjectStatusEnum
-from server.schema.base import Base
+from server.schemas.base import Base
 
 
 

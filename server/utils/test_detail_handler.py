@@ -1,7 +1,7 @@
 import datetime
 
-from server.schema.user_subscription_detail import UserSubscriptionDetail
-from server.schema.user_test_details import UserTestDetail
+from server.schemas.user_subscription_detail import UserSubscriptionDetail
+from server.schemas.user_test_details import UserTestDetail
 
 
 class UserTestDetailsManager:
@@ -35,4 +35,3 @@ class UserTestDetailsManager:
 
     def is_pro_plan(self, user_id):
         return False
-            

@@ -1,9 +1,8 @@
 from sqlalchemy import Column, ForeignKey, Integer, String, Text, create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKeyConstraint, UniqueConstraint
 
-from server.schema.base import Base
+from server.schemas.base import Base
 
 
 class Explanation(Base):
