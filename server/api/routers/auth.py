@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from fastapi import Request
 from fastapi.responses import JSONResponse, Response
@@ -30,18 +31,28 @@ async def login(login_request: LoginRequest):
 @auth_router.post("/signup")
 async def signup(request: Request):
     body = json.loads(await request.body())
-    user = CreateUser(
-    uid= body["uid"],
-    email= body["email"],
-    display_name= body["displayName"],
-    email_verified= body["emailVerified"],
-    created_at= body["createdAt"],
-    last_login_at= body["lastLoginAt"],
-    provider_info= body["providerData"][0],
-    provider_username= body["providerUsername"])
-    uid, message, error = user_handler.create_user(user)
-    add_users_to_additional_data(request, body)
-    if error:
-        return Response(content=message, status_code=400)
-
-    return Response(content=json.dumps({"uid": uid}), status_code=201)
+    uid = body["uid"]
+    user = user_handler.get_user_by_uid(uid)
+    if user:
+        message, error = user_handler.update_last_login(uid)
+        if error:
+            return Response(content=message, status_code=400)
+        else:
+            return Response(content=json.dumps({"uid": uid}), status_code=200)
+    else:
+        first_login = datetime.utcnow()
+        user = CreateUser(
+            uid=uid,
+            email=body["email"],
+            display_name=body["displayName"],
+            email_verified=body["emailVerified"],
+            created_at=first_login,
+            last_login_at=first_login,
+            provider_info=body["providerData"][0],
+            provider_username=body["providerUsername"]
+        )
+        uid, message, error = user_handler.create_user(user)
+        add_users_to_additional_data(request, body)
+        if error:
+            return Response(content=message, status_code=400)
+        return Response(content=json.dumps({"uid": uid}), status_code=201)
