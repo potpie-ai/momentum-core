@@ -36,11 +36,10 @@
   ·
 <a href="https://discord.gg/z6tj9Ufc">Join Our Discord</a>
   ·
-  <a href="https://roadmap.novu.co">Roadmap</a>
+  <a href="https://momentum.sh">Roadmap</a>
   ·
-  <a href="https://twitter.com/novuhq">X</a>
-  ·
-  <a href="https://notifications.directory">Notifications Directory</a>
+  <a href="https://twitter.com/momentumdotsh">X</a>
+  
 </p>
 
 
