@@ -155,12 +155,12 @@ class ProjectManager:
             conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
             cursor = conn.cursor()
             cursor.execute(f"""
-                SELECT project_name, directory, id, commit_id, status
+                SELECT project_name, directory, id, commit_id, status, is_deleted
                 FROM projects 
-                WHERE project_name = %s AND user_id = %s  {self.is_deleted_condition}
+                WHERE project_name = %s AND user_id = %s
             """,
-                (project_name, user_id),
-            )
+                           (project_name, user_id),
+                           )
 
             project = cursor.fetchone()
             if project:
@@ -186,7 +186,7 @@ class ProjectManager:
                 WHERE id = %s 
                 {self.is_deleted_condition}
             """,
-                (project_id, ),
+                (project_id,),
             )
 
             project = cursor.fetchone()
@@ -213,7 +213,7 @@ class ProjectManager:
                 WHERE id = %s 
                 {self.is_deleted_condition}
             """,
-                (project_id, ),
+                (project_id,),
             )
 
             project = cursor.fetchone()
@@ -266,7 +266,7 @@ class ProjectManager:
                 FROM projects 
                 WHERE id = %s 
                 {self.is_deleted_condition}
-            """, (project_id, ))
+            """, (project_id,))
 
             result = cursor.fetchone()
             if result:
@@ -363,5 +363,50 @@ class ProjectManager:
                 status_code=400,
                 detail="An error occurred while restoring the project"
             )
+        finally:
+            conn.close()
+
+    def restore_project(self, project_id: int, user_id: str):
+        try:
+            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE projects
+                SET is_deleted = false
+                WHERE id = %s AND user_id = %s AND is_deleted = true
+                RETURNING id
+            """, (project_id, user_id))
+            result = cursor.fetchone()
+            conn.commit()
+            if result:
+                return f"Project with ID {result[0]} restored successfully."
+            else:
+                return "Project not found or already restored."
+        except psycopg2.Error as e:
+            print(f"An error occurred: {e}")
+            return "Error occurred during restoration."
+        finally:
+            conn.close()
+
+    def restore_all_project(self, repo_name: str, user_id: str):
+        try:
+            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE projects
+                SET is_deleted = false
+                WHERE repo_name = %s AND user_id = %s AND is_deleted = true
+                RETURNING id
+            """, (repo_name, user_id))
+            result = cursor.fetchall()
+            conn.commit()
+            if result:
+                print()
+                return f"Project with repo_name {repo_name} restored successfully."
+            else:
+                return "Project not found or already restored."
+        except psycopg2.Error as e:
+            print(f"An error occurred: {e}")
+            return "Error occurred during restoration."
         finally:
             conn.close()

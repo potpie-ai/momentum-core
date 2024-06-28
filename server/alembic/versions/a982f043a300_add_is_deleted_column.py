@@ -1,4 +1,4 @@
-"""Add is_deleted column and remove directory constraint
+"""Add is_deleted column
 
 Revision ID: a982f043a300
 Revises: cbd8239ae1b7
@@ -28,13 +28,7 @@ def upgrade() -> None:
     projects_table = sa.table('projects',
                               sa.column('is_deleted', sa.Boolean()))
     op.execute(projects_table.update().values(is_deleted=False))
-    """
-        Remove the unique constraint from the 'directory' column, since it is causing issues if we're
-        trying to reparse a project after deleting it
-    """
-    op.drop_constraint('projects_directory_key', 'projects', type_='unique')
 
 
 def downgrade() -> None:
-    op.create_unique_constraint('projects_directory_key', 'projects', ['directory'])
     op.drop_column('projects', 'is_deleted')

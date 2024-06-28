@@ -10,6 +10,7 @@ from github.Auth import AppAuth
 from server.models.repo_details import RepoDetails, ProjectStatusEnum
 from server.parse import analyze_directory, get_values
 from server.projects import ProjectManager
+from server.utils.github_helper import GithubService
 from server.utils.parse_helper import setup_project_directory
 from server.utils.APIRouter import APIRouter
 
@@ -62,7 +63,7 @@ async def parse_repos(payload, request: Request):
                 repo_details = github.get_repo(repo['full_name'])
                 repo_branch = RepoDetails(repo_name=repo_details.full_name, branch_name=repo_details.default_branch)
                 project_id = None
-                repo_name, branch_name, project_details = get_values(repo_branch, project_manager, user_details[0])
+                repo_name, branch_name, is_deleted, project_details = get_values(repo_branch, project_manager, user_details[0])
                 owner = repo_details.owner.login
                 try:
                     if project_details is None:
@@ -85,6 +86,16 @@ async def parse_repos(payload, request: Request):
                             "size": repo_details.size / 1024,
                             "new_project": True
                         }
+                    else:
+                        project_id = project_details[2]
+                        if is_deleted:
+                            project_manager.restore_all_project(repo_branch.repo_name, user_id)
+                        if GithubService.check_is_commit_added(repo_details, project_details, branch_name):
+                            reparse_cleanup(project_details, user_id)
+                            dir_details, project_id = setup_project_directory(owner, repo_name,
+                                                                              branch_name, auth, repo_details, user_id,
+                                                                              project_id)
+                            analyze_directory(dir_details, user_id, project_id)
                 except Exception as e:
                     project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
                     raise HTTPException(status_code=500, detail=f"{str(e)}")
@@ -96,7 +107,7 @@ async def parse_repos(payload, request: Request):
             branch_name = payload['ref'].split("/")[-1]
             repo_branch = RepoDetails(repo_name=repo_name, branch_name=branch_name)
             repo_details = github.get_repo(repo_name)
-            repo_name, branch_name, project_details = get_values(repo_branch, project_manager, user_id)
+            repo_name, branch_name, is_deleted, project_details = get_values(repo_branch, project_manager, user_id)
             if project_details is not None:
                 owner = repo_details.owner.login
                 reparse_cleanup(project_details, user_id)
@@ -111,13 +122,13 @@ async def parse_repos(payload, request: Request):
                     project_id
                 )
                 analyze_directory(dir_details, user_id, project_id)
-                request.state.additional_data.append({
+                request.state.additional_data[repo_name] = {
                     "repository_name": repo_name,
                     "branch_name": branch_name,
                     "project_id": project_id,
                     "size": repo_details.size / 1024,
                     "new_project": False
-                })
+                }
             project_manager.update_project_status(
                 project_id, ProjectStatusEnum.READY
             )
