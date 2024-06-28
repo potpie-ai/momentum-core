@@ -77,8 +77,8 @@ To get started with Momentum, follow these steps:
 
 1. **Clone the repository**:
     ```bash
-    git clone https://github.com/getmomentum/momentum-srv.git
-    cd momentum-srv
+    git clone https://github.com/getmomentum/momentum-core.git
+    cd momentum-core
     ```
 
 2. **Set up the database via Docker**:
