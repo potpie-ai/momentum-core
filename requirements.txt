@@ -27,3 +27,4 @@ setuptools
 portkey_ai
 gunicorn
 sentry-sdk[fastapi]
+embedchain

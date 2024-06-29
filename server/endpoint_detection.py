@@ -659,7 +659,7 @@ class EndpointManager:
             else:
                 test_plan = None  # No test plan found for the given identifier
 
-            if row[1]:
+            if row and row[1]:
                 preferences = json.loads(
                     row[1]
                 )  # Deserialize the test plan back into a Python dictionary

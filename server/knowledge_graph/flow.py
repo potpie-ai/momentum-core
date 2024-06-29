@@ -43,7 +43,7 @@ class FlowInference:
     def insert_inference(self, key: str, inference: str, project_id: str, overall_explanation: str, hash: str):
         conn = psycopg2.connect(os.environ['POSTGRES_SERVER'])
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO inference (key, inference, hash, explanation, project_id) VALUES (%s, %s, %s, %s, %s)", (key, inference, hash, overall_explanation, project_id))
+        cursor.execute("INSERT INTO inference (key, inference, hash, explanation, project_id) VALUES (%s, %s, %s, %s, %s)", (key, inference, hash, '', project_id))
         conn.commit()
         conn.close()
         
