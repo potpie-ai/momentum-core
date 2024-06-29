@@ -1117,4 +1117,7 @@ def get_values(repo_branch, project_manager, user_id):
     project_details = project_manager.get_project_from_db(
         f"{repo_name}-{branch_name}", user_id
     )
-    return repo_name, branch_name, project_details[5], project_details
+    project_deleted = None
+    if project_details:
+        project_deleted = project_details[5]
+    return repo_name, branch_name, project_deleted, project_details
