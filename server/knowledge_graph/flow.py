@@ -43,7 +43,7 @@ class FlowInference:
     def insert_inference(self, key: str, inference: str, project_id: str, overall_explanation: str, hash: str):
         conn = psycopg2.connect(os.environ['POSTGRES_SERVER'])
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO inference (key, inference, hash, explanation, project_id) VALUES (%s, %s, %s, %s, %s)", (key, inference, hash, '', project_id))
+        cursor.execute("INSERT INTO inference (key, inference, hash, explanation, project_id) VALUES (%s, %s, %s, %s, %s)", (key, inference, hash,overall_explanation, project_id))
         conn.commit()
         conn.close()
         
@@ -138,7 +138,7 @@ class FlowInference:
 
         return explanation
 
-    def generate_overall_explanation(self, endpoint: Dict) -> str:
+    async def generate_overall_explanation(self, endpoint: Dict) -> str:
         conn = psycopg2.connect(os.environ['POSTGRES_SERVER'])
         cursor = conn.cursor()
         code = self.get_code_flow_by_id(endpoint["identifier"])
@@ -149,7 +149,8 @@ class FlowInference:
             if explanation_row:
                 return explanation_row[0], code_hash
             else:
-                return self.generate_explanation(code), code_hash
+                result = await self.generate_explanation(code), code_hash
+                return result
         cursor.close()
         conn.close()
 
@@ -199,7 +200,7 @@ class FlowInference:
 
         for endpoint in endpoints:
             if endpoint["path"] not in inferred_flows:
-                overall_explanation, code_hash = self.generate_overall_explanation(endpoint)
+                overall_explanation, code_hash = await self.generate_overall_explanation(endpoint)
                 if overall_explanation is not None:
                     flow_explanations[endpoint["path"]] = (await self.get_intent_from_explanation(overall_explanation), overall_explanation, code_hash)
 
