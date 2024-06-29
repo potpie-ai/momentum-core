@@ -35,21 +35,14 @@ async def parse_repos(payload, request: Request):
 
     repository_field = {
         "added": "repositories_added",
-        "created": "repositories"
+        "created": "repositories",
+        "removed": "repositories_removed"
     }.get(payload["action"], None)
 
     if ("installation" in payload and "action" in payload and
         (payload["action"] == "added" or payload["action"] == "created"))\
             or ("commits" in payload):
-        private_key = "-----BEGIN RSA PRIVATE KEY-----\n" + os.environ[
-            'GITHUB_PRIVATE_KEY'] + "\n-----END RSA PRIVATE KEY-----\n"
-        app_id = os.environ["GITHUB_APP_ID"]
-        auth = AppAuth(app_id=app_id, private_key=private_key)
-        installation_auth = auth.get_installation_auth(payload['installation']['id'])
-        github = Github(auth=installation_auth)
-        user = github.get_user_by_id(payload['sender']['id'])
-        username = user.login
-        user_details = get_user_id_by_username(username)
+        auth, installation_auth, user_details, github = GithubService.get_app_auth_details(payload)
         user_id = user_details[0]
         user_state_value = {
             "user_id": user_details[0],
@@ -133,3 +126,13 @@ async def parse_repos(payload, request: Request):
                 project_id, ProjectStatusEnum.READY
             )
             github.close()
+    elif "action" in payload and payload["action"] == "removed":
+        auth, installation_auth, user_details, github = GithubService.get_app_auth_details(payload)
+        user_id = user_details[0]
+        if repository_field in payload:
+            repositories_deleted = payload[repository_field]
+            for repo in repositories_deleted:
+                repo_name = github.get_repo(repo['full_name'])
+                project_manager.delete_all_project_by_repo_name(repo_name.full_name, user_id)
+        github.close()
+

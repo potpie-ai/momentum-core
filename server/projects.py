@@ -410,3 +410,26 @@ class ProjectManager:
             return "Error occurred during restoration."
         finally:
             conn.close()
+
+    def delete_all_project_by_repo_name(self, repo_name: str, user_id: str):
+        try:
+            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE projects
+                SET is_deleted = true
+                WHERE repo_name = %s AND user_id = %s AND is_deleted = false
+                RETURNING id
+            """, (repo_name, user_id))
+            result = cursor.fetchall()
+            conn.commit()
+            if result:
+                print()
+                return f"Projects with repo_name {repo_name} deleted successfully."
+            else:
+                return "Project not found or already restored."
+        except psycopg2.Error as e:
+            print(f"An error occurred: {e}")
+            return "Error occurred during restoration."
+        finally:
+            conn.close()
