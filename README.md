@@ -1,7 +1,10 @@
 <div align="center">
-  <a href="https://momentum.sh?utm_source=github" target="_blank">
+  <a href="[https://composio.dev/](https://momentum.sh?utm_source=github)//#gh-dark-mode-only">
+    <img src="https://github.com/getmomentum/momentum-core/assets/19893222/7b3212c0-2635-4a7c-a15d-fee488a0f471" width="318px" alt="Momentum logo" />
+  </a>
+  <a href="https://momentum.sh?utm_source=github//#gh-light-mode-only" target="_blank">
     <source media="(prefers-color-scheme: dark)">
-    <img alt="Momentum Logo" src="https://github.com/getmomentum/momentum-core/assets/19893222/285fe228-770e-43ed-9eb8-968d46eaafeb" width="280"/>
+    <img alt="Momentum Logo" src="https://github.com/getmomentum/momentum-core/assets/19893222/285fe228-770e-43ed-9eb8-968d46eaafeb" width="318px"/>
   </a>
 </div>
 
@@ -61,13 +64,29 @@ It understands your backend codebase and generates visualisation and precise con
 
 ## Features
 
-<img title="momentum-features" alt="features" src="https://github.com/getmomentum/momentum-core/assets/19893222/b1d5164f-c348-4bf5-978d-6dbaf16c5cbd">
+<img title="blast radius" alt="blast radius" src="https://github.com/getmomentum/momentum-core/assets/19893222/195432e7-1444-4964-8a55-37410116897e">
 
 - **Blast Radius**: This will be a list of endpoints that could potentially be affected by the changes you made in your code. This will also be a starting point to decide what parts of your code need to be tested before shipping to production..
+
+<img title="dependency visualisation" alt="dependency visualisation" src="https://github.com/getmomentum/momentum-core/assets/19893222/7d4356be-2868-48e5-9f42-7a296a86d6f5">
+
 - **Dependency Visualization**: Visualize code dependencies and relationships.
+  
+<img title="behaviuor detection" alt="behaviour detection" src="https://github.com/getmomentum/momentum-core/assets/19893222/f80469af-f16c-498f-97b9-c504a27242cd">
+
 - **Behaviour identification**: Automatically identify behaviors written in your code and generate a plan to test their functionality
+
+<img title="code generation" alt="code generation" src="https://github.com/getmomentum/momentum-core/assets/19893222/942dfcfd-6a35-4dca-af48-f14b9fcd0413">
+
 - **Code generation to test functionality**: Generate code to test all behaviors identified and run it in your local environment through momentum
 
+  <img title="code run" alt="code run" src="https://github.com/getmomentum/momentum-core/assets/19893222/6d935599-5475-4be9-a611-495e888875ad">
+  
+- **Run code in local dev environment**
+
+  <img title="code debugging" alt="code debugging" src="https://github.com/getmomentum/momentum-core/assets/19893222/2340a38f-c812-42e9-af56-e2684cf0722b">
+
+- **Debug code**
 
 ## Installation
 
