@@ -45,7 +45,7 @@ class Plan:
         self.test_client = self.user_pref_openai_client
 
     # example of a function that uses a multi-step prompt to write integration tests
-    def explanation_from_function(
+    async def explanation_from_function(
         self,
         function_to_test: str,  # Python function to test, as a string
         print_text: bool = True,  # optionally prints text; helpful for understanding the function & debugging
@@ -77,7 +77,7 @@ class Plan:
         if print_text:
             print_messages(explain_messages)
 
-        explanation = llm_call(self.explain_client, explain_messages)
+        explanation = await llm_call(self.explain_client, explain_messages)
         return explanation.content
 
     async def _plan(
@@ -91,23 +91,39 @@ class Plan:
 
         plan_user_message = HumanMessage(
             content=f"""A good integration test suite should aim to:
-    - Test the function's behavior for a wide range of possible inputs
-    - Test edge cases that the author may not have foreseen
-    - Take advantage of the features of `{test_package}` to make the tests easy to write and maintain
-    - Be easy to read and understand, with clean code and descriptive names
-    - Be deterministic, so that the tests always pass or fail in the same way
-    - Evaluate what scenarios are possible 
-    - Reuse code by using fixtures and other testing utilities for common setup and mocks 
-
-    To help integration test the flow above, list diverse scenarios that the function should be able to handle (and under each scenario, include a few examples).
-    Include exactly 3 scenario statements of happpy paths and 3 scenarios of edge cases. 
-    Format your output in JSON format as such, each scenario is only a string statement:
-    {{
-    \"happy_path\": [\"happy_scenario0\", \"happy_scenario1\", happy_scenario2,\" happy_scenario3\", \"happy_scenario4\", \"happy_scenario5\"],
-    \"edge_case\": [\"edge_scenario1\",\" edge_scenario2\", \"edge_scenario3\"]
-    }}
-
-    Ensure that your output is JSON parsable."""
+            - Test the function's behavior for a wide range of possible inputs
+- Test edge cases that the author may not have foreseen
+- Take advantage of the features of `{test_package}` to make the tests easy to write and maintain
+- Be easy to read and understand, with clean code and descriptive names
+- Be deterministic, so that the tests always pass or fail in the same way
+Happy Path Scenarios:
+- Test cases that cover the expected normal operation of the function, where the inputs are valid and the function produces the expected output without any errors.
+Edge Case Scenarios:
+- Test cases that explore the boundaries of the function's input domain, such as:
+  - Boundary values for input parameters
+  - Unexpected or invalid input types
+  - Error conditions and exceptions
+  - Interactions with external dependencies (e.g., databases, APIs)
+- These scenarios test the function's robustness and error handling capabilities.
+To help integration test the flow above:
+1. Analyze the provided code and explaination.
+2. List diverse happy path and edge case scenarios that the function should handle. 
+3. Include exactly 3 scenario statements of happpy paths and 3 scenarios of edge cases. 
+4. Format your output in JSON format as such, each scenario is only a string statement:
+{{
+\"happy_path\": [
+    \"happy_scenario1\",
+    \"happy_scenario2\",
+    ...
+],
+\"edge_case\": [
+    \"edge_case1\",
+    \"edge_case2\",
+    ...
+]
+}}
+5. Ensure that your output is JSON parsable.
+"""
         )
         plan_messages = [
             explain_assistant_message,
@@ -117,7 +133,7 @@ class Plan:
             print("Plan messages:")
             print_messages(plan_messages)
 
-        plan = llm_call(self.plan_client, plan_messages)
+        plan = await llm_call(self.plan_client, plan_messages)
         plan_assistant_message = AIMessage(content=plan.content)
 
         # Step 2b: If the plan is short, ask GPT to elaborate further
@@ -142,7 +158,7 @@ class Plan:
                 print_messages([elaboration_user_message])
             elaboration = ""
             if elaboration_needed:
-                elaboration = llm_call(self.plan_client, elaboration_messages)
+                elaboration = await llm_call(self.plan_client, elaboration_messages)
             return elaboration.content
         else:
             return plan
@@ -205,7 +221,7 @@ class Plan:
         except Exception as e:
             print(e)
 
-    def _get_explanation_for_function(
+    async def _get_explanation_for_function(
         self, function_identifier, node, project_id
     ):
         conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
@@ -239,7 +255,7 @@ class Plan:
                 code = GithubService.fetch_method_from_repo(
                     node
                 )
-                explanation = self.explanation_from_function(code)
+                explanation = await self.explanation_from_function(code)
                 cursor.execute(
                     "INSERT INTO explanation (identifier, hash, explanation,"
                     " project_id) VALUES (%s, %s, %s, %s)",
@@ -283,12 +299,7 @@ class Plan:
     ) -> str:
         execute_system_message = SystemMessage(
             content=(
-                "You are a world-class Python SDET who specialises in FastAPI,"
-                " pytest, pytest-mocks with an eagle eye for unintended bugs"
-                " and edge cases. You write careful, accurate integration"
-                " tests using the aforementioned frameworks. When asked to"
-                " reply only with code, you write all of your code in a single"
-                " block."
+"You are a world-class Python SDET who specialises in FastAPI, pytest, pytest-mocks with an eagle eye for unintended bugs and edge cases. You write careful, accurate integration tests using the aforementioned frameworks. When asked to reply only with code, you write all of your code in a single block."
             ),
         )
         plan_message = AIMessage(content=plan)
@@ -301,9 +312,13 @@ class Plan:
     The complete path of the endpoint is {endpoint_path}. It is important to use this complete path in the test API call because the code might not contain prefixes.
 
     Consider the following points while writing the integration tests:
-
+    * Analyze the provided function code and identify the key components, such as dependencies, database connections, and external API calls, that need to be mocked or set up for testing.
     * Review the provided test plan and understand the different test scenarios that need to be covered. Consider edge cases, error handling, and potential variations in input data.
     * Use the provided pydantic classes ({pydantic_classes}) to create the necessary pydantic objects for the test data and mock data setup. This ensures that the tests align with the expected data structures used in the function.
+    * Pay attention to the preferences provided ({preferences}). If a list of entities (functions, classes, databases, etc.) is specified to be mocked, strictly follow these preferences. If the preferences are empty, use your judgment to determine which components should be mocked, such as the database and any external API calls.
+    * Utilize FastAPI testing features like TestClient and dependency overrides to set up the test environment. Create fixtures to minimize code duplication and improve test maintainability.
+    * ALWAYS create a new FastAPI app in the test client and include the relevant routers in it for testing. Do not assume where the main FastAPI app is defined.
+    * When setting up mocks, use the pytest-mock library. Check if the output structure is defined in the code and use that to create the expected output response data for the test cases. If not defined, infer the expected output based on the test plan outcomes and the provided code under test.
     * Use your judgment to determine which components should be mocked, such as the database and any external API calls. Don't mock internal methods unless specified.
     * Utilize FastAPI TestClient and dependency overrides wherever possible to set up the tests. Create fixtures to minimize code duplication.
     * If there is authorisation involved, mock the authorisation middleware/dependency to always be authenticated. 
@@ -311,9 +326,11 @@ class Plan:
     * ALWAYS create a new FastAPI app in the test client and IMPORT THE RELEVANT ROUTERS in it for testing. DO NO TRY to import the main FastAPI app. DO NOT WRITE any new routers in the test file. 
     * Use pytest-mocks library only for mocking. For mocked response objects, use the output structure IF it is defined in the code ELSE infer the expected output structure based on the code and test plan.
     * When defining the target using pytest mocks, ensure that the target path is the path of the call and not the path of the definition.
-    For a func_a defined at src.utils.helper and imported in code as from src.utils.helper import func_a, the mock would look like : mocker.patch('src.pipeline.node_1.func_a', return_value="some_value")
+    * For a func_a defined at src.utils.helper and imported in code as from src.utils.helper import func_a, the mock would look like : mocker.patch('src.pipeline.node_1.func_a', return_value="some_value")
     * Write clear and concise test case names that reflect the scenario being tested. Use assertions to validate the expected behavior and handle potential exceptions gracefully.
     * Use appropriate setup and teardown methods to manage test resources efficiently.
+    * Consider the performance implications of the tests and optimize them where possible. Use appropriate setup and teardown methods to manage test resources efficiently.
+    * Provide meaningful error messages and logging statements to aid in debugging and troubleshooting failed tests.
     * Reply only with complete code, formatted as follows:
     ```python
     # imports
@@ -333,7 +350,7 @@ class Plan:
         if print_text:
             print_messages([execute_system_message, execute_user_message])
 
-        execution = llm_call(
+        execution = await llm_call(
             self.test_client, execute_messages, print_text, temperature
         )
 
@@ -382,7 +399,7 @@ class Plan:
                 + "\n code: \n"
                 + self._get_code_for_node(node)
                 + "\n explanation: \n"
-                + self._get_explanation_for_function(
+                + await self._get_explanation_for_function(
                     function, node, project_details[2]
                 )
             )

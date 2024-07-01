@@ -25,7 +25,7 @@ class Dependencies:
         return f"{directory}/{db_path}"
 
 
-    def dependencies_from_function(self, project_details, function_identifier: str,
+    async def dependencies_from_function(self, project_details, function_identifier: str,
         function_to_test: str, 
         flow: list,
         print_text: bool = True,  # optionally prints text; helpful for understanding the function & debugging
@@ -73,17 +73,17 @@ class Dependencies:
             print_messages(detect_messages)
 
 
-        explanation = llm_call(self.detect_client, detect_messages)
+        explanation = await llm_call(self.detect_client, detect_messages)
         return [x.strip() for x in explanation.content.split(",") if x.strip() != ""]
 
 
-    def get_dependencies(self, project_details, function_identifier):
+    async def get_dependencies(self, project_details, function_identifier):
         flow = get_flow(function_identifier, project_details[2])
         flow_trimmed = [x.split(':')[1] for x in flow if x != function_identifier]
         output = []
         for function in flow:
             node = get_node(function, project_details)
             code = GithubService.fetch_method_from_repo(node)
-            output += ( self.dependencies_from_function(project_details, function, code, flow_trimmed))
+            output += ( await self.dependencies_from_function(project_details, function, code, flow_trimmed))
         return output+flow_trimmed
 

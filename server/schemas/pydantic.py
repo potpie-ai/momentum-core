@@ -1,6 +1,6 @@
 from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint, Integer, PrimaryKeyConstraint, Text
 from sqlalchemy.orm import relationship
-from server.schema.base import Base
+from server.schemas.base import Base
 
 
 class Pydantic(Base):

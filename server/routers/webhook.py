@@ -74,7 +74,7 @@ async def parse_repos(payload, request: Request):
                             repo_details,
                             user_id
                         )
-                        analyze_directory(dir_details, user_id, project_id)
+                        await analyze_directory(dir_details, user_id, project_id)
                         project_manager.update_project_status(
                             project_id, ProjectStatusEnum.READY
                         )
@@ -110,7 +110,7 @@ async def parse_repos(payload, request: Request):
                     user_id,
                     project_id
                 )
-                analyze_directory(dir_details, user_id, project_id)
+                await analyze_directory(dir_details, user_id, project_id)
                 request.state.additional_data.append({
                     "repository_name": repo_name,
                     "branch_name": branch_name,

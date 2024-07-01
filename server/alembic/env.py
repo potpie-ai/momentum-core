@@ -6,7 +6,7 @@ from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
-from server.schema.base import Base
+from server.schemas.base import Base
 
 CURRENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(CURRENT_DIR)
@@ -26,8 +26,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
-# escaped_url = os.environ["POSTGRES_SERVER"].replace("%", "%%")
-escaped_url = "postgresql://postgres:mysecretpassword@localhost:5432/momentum"
+escaped_url = os.environ["POSTGRES_SERVER"].replace("%", "%%")
 config.set_main_option("sqlalchemy.url", escaped_url)
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
