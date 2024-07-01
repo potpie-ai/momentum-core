@@ -1,12 +1,12 @@
-<div align="center">
-  <a href="[https://composio.dev/](https://momentum.sh?utm_source=github)//#gh-dark-mode-only">
+<p align="center">
+  <a href="https://momentum.sh?utm_source=github//#gh-dark-mode-only">
     <img src="https://github.com/getmomentum/momentum-core/assets/19893222/7b3212c0-2635-4a7c-a15d-fee488a0f471" width="318px" alt="Momentum logo" />
   </a>
-  <a href="https://momentum.sh?utm_source=github//#gh-light-mode-only" target="_blank">
+  <a href="https://momentum.sh?utm_source=github//#gh-light-mode-only">
     <source media="(prefers-color-scheme: dark)">
-    <img alt="Momentum Logo" src="https://github.com/getmomentum/momentum-core/assets/19893222/285fe228-770e-43ed-9eb8-968d46eaafeb" width="318px"/>
+    <img alt="Momentum Logo light" src="https://github.com/getmomentum/momentum-core/assets/19893222/285fe228-770e-43ed-9eb8-968d46eaafeb" width="318px"/>
   </a>
-</div>
+</p>
 
 <br/>
 
