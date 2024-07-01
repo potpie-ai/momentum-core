@@ -178,8 +178,12 @@ For detailed usage instructions, visit the [Momentum Documentation](https://docs
 
 ## Contributing
 
-We welcome contributions from the community. To contribute:
+We welcome contributions from the community. Contributions can be of the form: 
+1. Documentation : Help improve our docs! If you fixed a problem, chances are others faced it too.
+2. Code : Help us make improvements to existing features and build new features for momentum. 
+3. Tests :  Help us make momentum resilient by contributing tests.
 
+To contribute:
 1. Fork the repository.
 2. Create a new branch (`git checkout -b feature-branch`).
 3. Commit your changes (`git commit -am 'Add new feature'`).
