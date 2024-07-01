@@ -2,7 +2,7 @@
 
 We welcome and deeply appreciate any contributions to momentum. No matter how small, every contribution is valuable and will be duly acknowledged. 
 
->Contributors should follow the [code of conduct](/code_of_conduct.md)
+>Contributors should follow the [code of conduct](/docs/introduction-to-momentum/code_of_conduct.md)
 
 When contributing to momentum, ensure that: 
 
