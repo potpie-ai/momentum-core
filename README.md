@@ -62,7 +62,10 @@ Momentum is an open-source tool designed to generate and understand powerful ins
 momentum is a code auditor that analyses the necessary code behavior and tests it at every git push to ensure the code is ready for production.
 It understands your backend codebase and generates visualisation and precise context for test plans and test cases for all entry points detected in the system.
 
-## Features
+## What is a behavior?
+A behavior is defined as a task or functionality you were trying to create using your code. Examples could be deleting a document using a deleting API or creating a new user in the database. Behaviors can also be more complex sometimes where third-party dependencies are associated for example fetching data from a payment API to check the status. Behaviours must be independently executable tasks.
+
+## Here's how momentum can help you!
 
 <img title="blast radius" alt="blast radius" src="https://github.com/getmomentum/momentum-core/assets/19893222/195432e7-1444-4964-8a55-37410116897e">
 
@@ -82,11 +85,11 @@ It understands your backend codebase and generates visualisation and precise con
 
   <img title="code run" alt="code run" src="https://github.com/getmomentum/momentum-core/assets/19893222/6d935599-5475-4be9-a611-495e888875ad">
   
-- **Run code in local dev environment**
+- **Run code in local dev environment**: No need for yet another yaml, our cli works with your existing dev environment to run code.
 
   <img title="code debugging" alt="code debugging" src="https://github.com/getmomentum/momentum-core/assets/19893222/2340a38f-c812-42e9-af56-e2684cf0722b">
 
-- **Debug code**
+- **Debug code**: Based on the stacktrace of the run, momentum can diagnose and propose a solution
 
 ## Installation
 
