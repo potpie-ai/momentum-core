@@ -1,5 +1,9 @@
 # Contributing to momentum
 
+We welcome and deeply appreciate any contributions to momentum. No matter how small, every contribution is valuable and will be duly acknowledged. 
+
+>Contributors should follow the [code of conduct](/code_of_conduct.md)
+
 When contributing to momentum, ensure that: 
 
 1. You have looked at [open issues](https://github.com/getmomentum/momentum-core/issues) to see if there's something you can do for us.
@@ -14,8 +18,9 @@ We welcome contributions from the community. Contributions can be of the form:
 3. Tests :  Help us make momentum resilient by contributing tests.
 
 To contribute:
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Commit your changes (`git commit -am 'Add new feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Open a Pull Request.
+2. Fork the repository.
+3. Create a new branch (`git checkout -b feature-branch`).
+4. Commit your changes (`git commit -am 'Add new feature'`).
+5. Push to the branch (`git push origin feature-branch`).
+6. Open a Pull Request.
+
