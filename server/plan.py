@@ -108,8 +108,8 @@ Edge Case Scenarios:
 To help integration test the flow above:
 1. Analyze the provided code and explaination.
 2. List diverse happy path and edge case scenarios that the function should handle. 
-3. Include a MINIMUM of 3 and MAXIMUM of 6 happy path scenarios and 3 edge case scenarios.
-4. Format your output in JSON format as follows:
+3. Include exactly 3 scenario statements of happpy paths and 3 scenarios of edge cases. 
+4. Format your output in JSON format as such, each scenario is only a string statement:
 {{
 \"happy_path\": [
     \"happy_scenario1\",

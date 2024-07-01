@@ -10,3 +10,4 @@ venv/
 .momentum
 /server/.hypothesis
 .hypothesis
+db
