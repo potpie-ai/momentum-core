@@ -39,7 +39,7 @@
   ·
 <a href="https://discord.gg/z6tj9Ufc">Join Our Discord</a>
   ·
-  <a href="https://momentum.sh">Roadmap</a>
+  <a href="https://roadmap.momentum.sh">Roadmap</a>
   ·
   <a href="https://twitter.com/momentumdotsh">X</a>
   
