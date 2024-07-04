@@ -427,9 +427,9 @@ class ProjectManager:
                 print()
                 return f"Projects with repo_name {repo_name} deleted successfully."
             else:
-                return "Project not found or already restored."
+                return "Project not found or already deleted."
         except psycopg2.Error as e:
             print(f"An error occurred: {e}")
-            return "Error occurred during restoration."
+            return "Error occurred during deletion."
         finally:
             conn.close()
