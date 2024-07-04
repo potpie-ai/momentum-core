@@ -4,7 +4,6 @@ from itertools import islice
 
 from tree_sitter_languages import get_language, get_parser
 import os
-import argparse
 
 # Load Python grammar for Tree-sitter
 parser = get_parser("python")

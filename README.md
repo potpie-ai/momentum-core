@@ -1,9 +1,12 @@
-<div align="center">
-  <a href="https://momentum.sh?utm_source=github" target="_blank">
-    <source media="(prefers-color-scheme: dark)">
-    <img alt="Momentum Logo" src="https://github.com/getmomentum/momentum-core/assets/19893222/285fe228-770e-43ed-9eb8-968d46eaafeb" width="280"/>
+<p align="center">
+  <a href="https://momentum.sh?utm_source=github//#gh-dark-mode-only">
+    <img src="https://github.com/getmomentum/momentum-core/assets/19893222/7b3212c0-2635-4a7c-a15d-fee488a0f471" width="318px" alt="Momentum logo" />
   </a>
-</div>
+  <a href="https://momentum.sh?utm_source=github//#gh-light-mode-only">
+    <source media="(prefers-color-scheme: dark)">
+    <img alt="Momentum Logo light" src="https://github.com/getmomentum/momentum-core/assets/19893222/285fe228-770e-43ed-9eb8-968d46eaafeb" width="318px"/>
+  </a>
+</p>
 
 <br/>
 
@@ -36,7 +39,7 @@
   ·
 <a href="https://discord.gg/z6tj9Ufc">Join Our Discord</a>
   ·
-  <a href="https://momentum.sh">Roadmap</a>
+  <a href="https://roadmap.momentum.sh">Roadmap</a>
   ·
   <a href="https://twitter.com/momentumdotsh">X</a>
   
@@ -59,15 +62,34 @@ Momentum is an open-source tool designed to generate and understand powerful ins
 momentum is a code auditor that analyses the necessary code behavior and tests it at every git push to ensure the code is ready for production.
 It understands your backend codebase and generates visualisation and precise context for test plans and test cases for all entry points detected in the system.
 
-## Features
+## What is a behavior?
+A behavior is defined as a task or functionality you were trying to create using your code. Examples could be deleting a document using a deleting API or creating a new user in the database. Behaviors can also be more complex sometimes where third-party dependencies are associated for example fetching data from a payment API to check the status. Behaviours must be independently executable tasks.
 
-<img title="momentum-features" alt="features" src="https://github.com/getmomentum/momentum-core/assets/19893222/b1d5164f-c348-4bf5-978d-6dbaf16c5cbd">
+## Here's how momentum can help you!
+
+<img title="blast radius" alt="blast radius" src="https://github.com/getmomentum/momentum-core/assets/19893222/195432e7-1444-4964-8a55-37410116897e">
 
 - **Blast Radius**: This will be a list of endpoints that could potentially be affected by the changes you made in your code. This will also be a starting point to decide what parts of your code need to be tested before shipping to production..
+
+<img title="dependency visualisation" alt="dependency visualisation" src="https://github.com/getmomentum/momentum-core/assets/19893222/7d4356be-2868-48e5-9f42-7a296a86d6f5">
+
 - **Dependency Visualization**: Visualize code dependencies and relationships.
+  
+<img title="behaviuor detection" alt="behaviour detection" src="https://github.com/getmomentum/momentum-core/assets/19893222/f80469af-f16c-498f-97b9-c504a27242cd">
+
 - **Behaviour identification**: Automatically identify behaviors written in your code and generate a plan to test their functionality
+
+<img title="code generation" alt="code generation" src="https://github.com/getmomentum/momentum-core/assets/19893222/942dfcfd-6a35-4dca-af48-f14b9fcd0413">
+
 - **Code generation to test functionality**: Generate code to test all behaviors identified and run it in your local environment through momentum
 
+  <img title="code run" alt="code run" src="https://github.com/getmomentum/momentum-core/assets/19893222/6d935599-5475-4be9-a611-495e888875ad">
+  
+- **Run code in local dev environment**: No need for yet another yaml, our cli works with your existing dev environment to run code.
+
+  <img title="code debugging" alt="code debugging" src="https://github.com/getmomentum/momentum-core/assets/19893222/2340a38f-c812-42e9-af56-e2684cf0722b">
+
+- **Debug code**: Based on the stacktrace of the run, momentum can diagnose and propose a solution
 
 ## Installation
 
@@ -159,8 +181,12 @@ For detailed usage instructions, visit the [Momentum Documentation](https://docs
 
 ## Contributing
 
-We welcome contributions from the community. To contribute:
+We welcome contributions from the community. Contributions can be of the form: 
+1. Documentation : Help improve our docs! If you fixed a problem, chances are others faced it too.
+2. Code : Help us make improvements to existing features and build new features for momentum. 
+3. Tests :  Help us make momentum resilient by contributing tests.
 
+To contribute:
 1. Fork the repository.
 2. Create a new branch (`git checkout -b feature-branch`).
 3. Commit your changes (`git commit -am 'Add new feature'`).

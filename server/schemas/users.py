@@ -1,10 +1,9 @@
 from sqlalchemy import TIMESTAMP, Boolean, Column, String
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from server.schema.base import Base
+from server.schemas.base import Base
 
 
 class User(Base):
