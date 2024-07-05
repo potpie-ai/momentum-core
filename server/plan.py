@@ -109,8 +109,8 @@ Edge Case Scenarios:
 To help integration test the flow above:
 1. Analyze the provided code and explaination.
 2. List diverse happy path and edge case scenarios that the function should handle. 
-3. Include a MINIMUM of 3 and MAXIMUM of 6 happy path scenarios and 3 edge case scenarios.
-4. Format your output in JSON format as follows:
+3. Include exactly 3 scenario statements of happpy paths and 3 scenarios of edge cases. 
+4. Format your output in JSON format as such, each scenario is only a string statement:
 {{
 \"happy_path\": [
     \"happy_scenario1\",
@@ -178,49 +178,6 @@ To help integration test the flow above:
             # Write the string to the file
             file.write(result)
         return filename
-
-    async def run_tests(self, identifier, content):
-        directory = os.getcwd()
-        try:
-
-            test_filepath = await self.create_temp_test_file(
-                identifier, content
-            )
-            test_filename = test_filepath.split("/")[-1]
-
-            if not (
-                test_filename.endswith("_test.py")
-                or test_filename.startswith("test")
-            ):
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "Invalid test file name. File should start or end with"
-                        " 'test.py'."
-                    ),
-                )
-
-            # Construct the pytest command
-            # activate_venv_command = f"source {directory}/.venv/bin/activate"
-            pytest_command = (
-                "pytest --verbose --json-report --json-report-file=-"
-                f" {shlex.quote(test_filepath)}"
-            )
-            full_command = pytest_command
-            # result = subprocess.run(activate_venv_command, shell=True, capture_output=True, text=True, executable='/bin/bash')
-
-            # Execute the pytest command within the virtual environment
-            result = subprocess.run(
-                full_command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                executable="/bin/bash",
-            )
-            output = result.stdout if result.stdout else result.stderr
-            return output
-        except Exception as e:
-            logging.error("error in run_tests ",e)
 
     async def _get_explanation_for_function(
         self, function_identifier, node, project_id
@@ -359,7 +316,6 @@ To help integration test the flow above:
         code = execution.content.split("```python")[1].split("```")[0].strip()
         try:
             ast.parse(code)
-            # output = await run_tests(code)
 
         except SyntaxError as e:
             logging.error(f"Syntax error in generated code: {e}")

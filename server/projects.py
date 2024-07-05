@@ -29,7 +29,7 @@ class ProjectManager:
                             );""")
             conn.commit()
         except psycopg2.Error as e:
-            logging.error("An error occurred: in  _create_table in ProjectManager", e)
+            logging.error(f"An error occurred: in _create_table in ProjectManager, error: {e}")
         finally:
             conn.close()
 

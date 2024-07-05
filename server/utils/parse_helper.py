@@ -118,5 +118,5 @@ def delete_folder(folder_path):
         else:
             raise HTTPException(status_code=404, detail="Project Folder not found")
     except Exception as e:
-        logging.exception(str(e))
+        logging.exception(f"Error in deleting folder: {str(e)}")
         raise HTTPException(status_code=400, detail="Error deleting Project Folder.")

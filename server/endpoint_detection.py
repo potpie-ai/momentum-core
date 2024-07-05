@@ -154,7 +154,7 @@ class EndpointManager:
                                         if not view_name.endswith("as_view")
                                         else view_name.rsplit(".", 1)[0]
                                     )
-                                    logging.info("project_id:" , project_id ,"identify_django_endpoints -> view_name : ",view_name )
+                                    logging.info(f"project_id: {project_id} identify_django_endpoints -> view_name : ,{view_name}")
                                     file_path, identifier = (
                                         self.resolve_called_view_name(
                                             view,
@@ -164,7 +164,7 @@ class EndpointManager:
                                             view_type,
                                         )
                                     )
-                                    logging.info("project_id:" , project_id ,"identify_django_endpoints -> file_path : ",file_path, " and " , "identifier : ",identifier)
+                                    logging.info(f"project_id: {project_id} identify_django_endpoints -> file_path : ,{file_path},  and identifier : {identifier}")
                                     if identifier:
                                         entry_point = (
                                             file_path.replace(
@@ -534,7 +534,7 @@ class EndpointManager:
             conn.commit()
             logging.info(f"project_id: ,{project_id}, Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
         except psycopg2.Error as e:
-            logging.error("project_id:" , project_id ,"An error occurred while deleting endpoints:", e)
+            logging.info(f"project_id: ,{project_id}, An error occurred while deleting endpoints: {e}")
         finally:
             conn.close()
 

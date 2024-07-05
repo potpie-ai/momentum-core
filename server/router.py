@@ -163,11 +163,7 @@ def get_blast_radius_details(
             additions = sum(file.additions for file in git_diff.files)
             deletions = sum(file.deletions for file in git_diff.files)
             lines_impacted = additions + deletions
-            logging.info({
-                "project_id": project_id,
-                "added_commits": added_commits,
-                "lines_impacted": lines_impacted
-            })
+            logging.info(f"project_id: {project_id}, added_commits: {added_commits}, lines_impacted: {lines_impacted}")
             request.state.additional_data = {
                 "added_commits": added_commits,
                 "lines_impacted": lines_impacted

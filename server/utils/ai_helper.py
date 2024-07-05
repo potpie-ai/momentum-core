@@ -40,9 +40,7 @@ def print_messages(
     """Prints messages sent to or from GPT."""
     for message in messages:
         role = message.type
-        color_prefix = color_prefix_by_role[role]
         content = message.content
-        logging.info("print_messages")
         logging.info(f"[{role}]\n{content}")
 
 
@@ -51,8 +49,6 @@ def print_message_delta(
 ) -> None:
     """Prints a chunk of messages streamed back from GPT."""
     role = delta.type
-    color_prefix = color_prefix_by_role[role]
-    logging.info("print_message_delta")
     logging.info(f"[{role}]\n")
     content = delta.content
     logging.info(content)
@@ -63,8 +59,6 @@ def print_message_delta_openai(
 ) -> None:
     """Prints a chunk of messages streamed back from GPT."""
     role = delta.role
-    color_prefix = color_prefix_by_role[role]
-    logging.info("print_message_delta_openai")
     logging.info(f"[{role}]\n")
     content = delta.content
     logging.info(content)
