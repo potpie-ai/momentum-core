@@ -73,6 +73,85 @@ class Neo4jGraph:
         with self.driver.session() as session:
             return session.read_transaction(self._get_node_file_property, identifier, project_id)
 
+    def add_extends_relationship(self, base_class_id, derived_class_id, project_id):
+        with self.driver.session() as session:
+            session.write_transaction(self._add_extends_relationship, base_class_id, derived_class_id, project_id)
+
+    def get_class_hierarchy(self, class_name, project_id):
+        with self.driver.session() as session:
+            return session.read_transaction(self._get_class_hierarchy, class_name, project_id)
+
+    def get_multiple_class_hierarchies(self, classnames, project_id):
+        with self.driver.session() as session:
+            return session.read_transaction(self._get_multiple_class_hierarchies, classnames, project_id)
+
+    @staticmethod
+    def _get_class_hierarchy(tx, class_name, project_id):
+        query = """
+        MATCH (derived:Function {class_name: $class_name, project_id: $project_id})
+        CALL {
+            WITH derived
+            MATCH path = (derived)-[:EXTENDS*0..]->(base)
+            RETURN base AS node, length(path) AS depth
+            ORDER BY depth
+        }
+        RETURN DISTINCT node
+        ORDER BY depth
+        """
+        result = tx.run(query, class_name=class_name, project_id=project_id)
+
+        class_hierarchy = []
+        for record in result:
+            node = record["node"]
+            class_info = {
+                "filepath": node["file"],
+                "class_name": node["class_name"],
+                "start": node["start"],
+                "end": node["end"],
+                "id": node["id"],
+                "project_id": node["project_id"]
+            }
+            class_hierarchy.append(class_info)
+
+        return class_hierarchy
+
+    @staticmethod
+    def _get_multiple_class_hierarchies(tx, classnames, project_id):
+        query = """
+        MATCH (derived:Function)
+        WHERE derived.class_name IN $classnames AND derived.project_id = $project_id
+        MATCH path = (derived)-[:EXTENDS*0..]->(base)
+        WITH derived.class_name AS root_class_name, base AS node, length(path) AS depth
+        ORDER BY root_class_name, depth
+        RETURN DISTINCT root_class_name, node, depth
+        """
+        result = tx.run(query, classnames=classnames, project_id=project_id)
+
+        class_hierarchies = []
+        seen_nodes = set()
+        for record in result:
+            node = record["node"]
+            root_classname = record["root_class_name"]
+
+            # Check if we've already added this node
+            if node.id in seen_nodes:
+                continue
+
+            seen_nodes.add(node.id)
+
+            class_info = {
+                "filepath": node["file"],
+                "classname": node["class_name"],
+                "start": node["start"],
+                "end": node["end"],
+                "id": node["id"],
+                "root_classname": root_classname,
+                "project_id": node["project_id"]
+            }
+            class_hierarchies.append(class_info)
+
+        return class_hierarchies
+
     @staticmethod
     def _delete_nodes_by_project_id(tx, project_id):
         try:
@@ -269,6 +348,16 @@ class Neo4jGraph:
         neighbors = [dict(neighbor) for neighbor in record["neighbors"]]
         combined = [start_node] + neighbors if neighbors else [start_node]
         return combined
+
+    @staticmethod
+    def _add_extends_relationship(tx, base_class_id, derived_class_id, project_id):
+        query = """
+        MATCH (base:Function {id: $base_class_id, project_id: $project_id}),
+              (derived:Function {id: $derived_class_id, project_id: $project_id})
+        MERGE (derived)-[r:EXTENDS]->(base)
+        RETURN r
+        """
+        tx.run(query, base_class_id=base_class_id, derived_class_id=derived_class_id, project_id=project_id)
 
     def atomic_transaction(self, operations):
         with self.driver.session() as session:
