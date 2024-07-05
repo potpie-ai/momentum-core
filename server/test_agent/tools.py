@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from langchain.tools import tool
@@ -67,7 +68,7 @@ class CodeTools:
       try:
         definitions = get_pydantic_classes(classnames, project_id)
       except Exception as e:
-        print(f"something went wrong during fetching definition for {classnames}", e)
+        logging.exception(f"project_id : {project_id} something went wrong during fetching definition for {classnames}", e)
       return definitions
 
     @tool("Query the code knowledge graph with specific directed questions using natural language and project id and return the query result")

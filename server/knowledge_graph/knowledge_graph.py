@@ -22,4 +22,4 @@ class KnowledgeGraph:
 
     def query(self, query, project_id):
         prefix = "Always INCLUDE ALL RELEVANT FILEPATH, FUNCTION NAME AND VARIABLE NAMES in your response. If you are asked about an API: ALWAYS include its HTTP verb and url path along with its identifier in the response: \n"
-        return self.app.query(prefix+query, metadata={"project_id": project_id})
+        return self.app.query(prefix+query, where={"project_id": project_id})

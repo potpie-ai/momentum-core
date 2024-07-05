@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 from server.utils.config import neo4j_config
 import os
+import logging
 
 import psycopg2
 from tree_sitter_languages import get_language, get_parser
@@ -153,7 +154,7 @@ class EndpointManager:
                                         if not view_name.endswith("as_view")
                                         else view_name.rsplit(".", 1)[0]
                                     )
-                                    print(view_name)
+                                    logging.info("project_id:" , project_id ,"identify_django_endpoints -> view_name : ",view_name )
                                     file_path, identifier = (
                                         self.resolve_called_view_name(
                                             view,
@@ -163,7 +164,7 @@ class EndpointManager:
                                             view_type,
                                         )
                                     )
-                                    print(file_path, identifier)
+                                    logging.info("project_id:" , project_id ,"identify_django_endpoints -> file_path : ",file_path, " and " , "identifier : ",identifier)
                                     if identifier:
                                         entry_point = (
                                             file_path.replace(
@@ -518,7 +519,7 @@ class EndpointManager:
                 )
 
         except psycopg2.Error as e:
-            print("An error occurred: 9", e)
+            logging.error(f"project_id: {project_id}, display_endpoints -> psycopg2.Error : {e}")
         finally:
             conn.close()
         return paths
@@ -531,9 +532,9 @@ class EndpointManager:
                 "DELETE FROM endpoints WHERE project_id = %s AND project_id IN (SELECT id FROM projects WHERE user_id = %s)",
                 (project_id, user_id))
             conn.commit()
-            print(f"Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
+            logging.info(f"project_id: ,{project_id}, Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
         except psycopg2.Error as e:
-            print("An error occurred while deleting endpoints:", e)
+            logging.error("project_id:" , project_id ,"An error occurred while deleting endpoints:", e)
         finally:
             conn.close()
 
@@ -545,9 +546,9 @@ class EndpointManager:
                 "DELETE FROM pydantic WHERE project_id = %s AND project_id IN (SELECT id FROM projects WHERE user_id = %s)",
                 (project_id, user_id))
             conn.commit()
-            print(f"Pydantic entries with project_id {project_id} and user_id {user_id} deleted successfully.")
+            logging.info(f"project_id: ,{project_id}, Pydantic entries with project_id {project_id} and user_id {user_id} deleted successfully.")
         except psycopg2.Error as e:
-            print("An error occurred while deleting pydantic entries:", e)
+            logging.error(f"project_id: ,{project_id}, An error occurred while deleting pydantic entries: , {e}")
         finally:
             conn.close()
 
@@ -563,7 +564,7 @@ class EndpointManager:
             params = (plan, identifier, project_id)
             cursor.execute(query, params)
         except psycopg2.IntegrityError as e:
-            print(e.sqlite_errorname)
+            logging.error(f"project_id: {project_id}, error -> {e.sqlite_errorname}")
 
         conn.commit()
         conn.close()
@@ -579,7 +580,7 @@ class EndpointManager:
             params = (json.dumps(preferences), identifier, project_id)
             cursor.execute(query, params)
         except psycopg2.IntegrityError as e:
-            print(e.sqlite_errorname)
+            logging.error(f"project_id: {project_id}, error ",e)
 
         conn.commit()
         conn.close()
@@ -607,7 +608,7 @@ class EndpointManager:
             else:
                 return None  # No test plan found for the given identifier
         except psycopg2.Error as e:
-            print(f"SQLite error: {e}")
+            logging.error(f"project_id: {project_id}, SQLite error: {e}")
             return None
         finally:
             conn.close()
@@ -635,7 +636,7 @@ class EndpointManager:
             else:
                 return None  # No test plan found for the given identifier
         except psycopg2.Error as e:
-            print(f"SQLite error: {e}")
+            logging.error(f"project_id: {project_id}, SQLite error: {e}")
             return None
         finally:
             conn.close()
@@ -668,7 +669,7 @@ class EndpointManager:
                     None  # No test plan found for the given identifier
                 )
         except psycopg2.Error as e:
-            print(f"SQLite error: {e}")
+            logging.error(f"project_id: {project_id}, SQLite error: {e}")
             return None, None
         finally:
             conn.close()

@@ -1,3 +1,4 @@
+import logging
 import psycopg2
 import os
 from server.utils.user_service import initialize_db
@@ -28,7 +29,7 @@ class ProjectManager:
                             );""")
             conn.commit()
         except psycopg2.Error as e:
-            print("An error occurred: 1", e)
+            logging.error("An error occurred: in  _create_table in ProjectManager", e)
         finally:
             conn.close()
 
@@ -55,10 +56,9 @@ class ProjectManager:
                 message = f"Project '{project_name}' registered successfully."
             conn.commit()
             project_id = cursor.fetchone()[0]
-            print(message)
-
+            logging.info(f"register_project, message: {message}")
         except psycopg2.Error as e:
-            print("An error occurred:", e)
+            logging.error(f"register_project, error: {e}")
         finally:
             if conn:
                 conn.close()
@@ -80,7 +80,7 @@ class ProjectManager:
                 # Append the dictionary to the list
                 project_list.append(project_dict)
         except psycopg2.Error as e:
-            print("An error occurred: 3", e)
+            logging.error(f"An error occurred: list_projects, error: {e}")
         finally:
             conn.close()
         return project_list
@@ -97,12 +97,13 @@ class ProjectManager:
             )
 
             conn.commit()
-            print(
-                f"Project with ID {project_id} has now been updated with"
-                f" status {status}."
+            logging.info(
+                f"Project with ID {project_id} has now been updated with status {status}."
             )
         except psycopg2.Error as e:
-            print("An error occurred: 4", e)
+            logging.error(
+                f"Project with ID {project_id} has error in update_project_status, error: {e}."
+            )
         finally:
             conn.close()
 
@@ -119,7 +120,7 @@ class ProjectManager:
             else:
                 return None
         except psycopg2.Error as e:
-            print("An error occurred: 5", e)
+            logging.error(f"An error occurred: get_active_project, error: {e}")
         finally:
             conn.close()
 
@@ -138,7 +139,7 @@ class ProjectManager:
             else:
                 return None
         except psycopg2.Error as e:
-            print("An error occurred: 10", e)
+            logging.error(f"An error occurred: get_active_dir, error: {e}")
         finally:
             conn.close()
 
@@ -161,7 +162,7 @@ class ProjectManager:
                 return None
 
         except psycopg2.Error as e:
-            print("An error occurred:", e)
+            logging.error(f"project_id: {project_name}, error in get_project_from_db - An error occurred: {e}")
 
         finally:
             if "conn" in locals() and conn:
@@ -187,7 +188,7 @@ class ProjectManager:
                 return None
 
         except psycopg2.Error as e:
-            print("An error occurred:", e)
+            logging.error(f"Project id: {project_id}, An error occurred: {e}")
 
         finally:
             if "conn" in locals() and conn:
@@ -213,7 +214,7 @@ class ProjectManager:
                 return None
 
         except psycopg2.Error as e:
-            print("An error occurred:", e)
+            logging.error(f"Project id: {project_id}, An error occurred in get project reponame from db: {e}")
 
         finally:
             if "conn" in locals() and conn:
@@ -239,7 +240,7 @@ class ProjectManager:
                 return None
 
         except psycopg2.Error as e:
-            print("An error occurred:", e)
+            logging.error(f"Project id: {project_id}, An error occurred in get_project_repo_details_from_db: {e}")
 
         finally:
             if "conn" in locals() and conn:
@@ -263,7 +264,7 @@ class ProjectManager:
                 return None
 
         except psycopg2.Error as e:
-            print("An error occurred:", e)
+            logging.error(f"project_id: {project_id}, get_repo_and_branch_name - An error occurred: {e}")
 
         finally:
             conn.close()
@@ -288,7 +289,7 @@ class ProjectManager:
                 return None
 
         except psycopg2.Error as e:
-            print("An error occurred:", e)
+            logging.error(f"project_id: {project_id}, get_project_from_db_by_id_and_user_id - An error occurred: {e}")
 
         finally:
             if "conn" in locals() and conn:
@@ -321,7 +322,7 @@ class ProjectManager:
             return project
 
         except psycopg2.Error as e:
-            print("An error occurred: 12", e)
+            logging.error(f"get_parsed_project_branches - An error occurred: {e}")
 
         finally:
             if "conn" in locals() and conn:

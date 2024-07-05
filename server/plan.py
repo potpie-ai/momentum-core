@@ -2,6 +2,7 @@
 import ast
 import hashlib
 import json
+import logging
 import os
 import random
 import re
@@ -53,7 +54,7 @@ class Plan:
         # model used to generate code in step 3
         temperature: float = 0.4,  # temperature = 0 can sometimes get stuck in repetitive loops, so we use 0.4
     ) -> str:
-        print(function_to_test)
+        logging.info(function_to_test)
         """Returns a integration test for a given Python function, using a 3-step GPT prompt."""
 
         # Step 1: Generate an explanation of the function
@@ -108,8 +109,8 @@ Edge Case Scenarios:
 To help integration test the flow above:
 1. Analyze the provided code and explaination.
 2. List diverse happy path and edge case scenarios that the function should handle. 
-3. Include exactly 3 scenario statements of happpy paths and 3 scenarios of edge cases. 
-4. Format your output in JSON format as such, each scenario is only a string statement:
+3. Include a MINIMUM of 3 and MAXIMUM of 6 happy path scenarios and 3 edge case scenarios.
+4. Format your output in JSON format as follows:
 {{
 \"happy_path\": [
     \"happy_scenario1\",
@@ -130,7 +131,7 @@ To help integration test the flow above:
             plan_user_message,
         ]
         if print_text:
-            print("Plan messages:")
+            logging.info("Plan messages:")
             print_messages(plan_messages)
 
         plan = await llm_call(self.plan_client, plan_messages)
@@ -139,7 +140,7 @@ To help integration test the flow above:
         # Step 2b: If the plan is short, ask GPT to elaborate further
         # this counts top-level bullets (e.g., categories), but not sub-bullets (e.g., test cases)
         plan_content = self._extract_json(plan.content)
-        print(plan_content)
+        logging.info(plan_content)
         num_scenarios = len(plan_content["happy_path"]) + len(
             plan_content["edge_case"]
         )
@@ -219,7 +220,7 @@ To help integration test the flow above:
             output = result.stdout if result.stdout else result.stderr
             return output
         except Exception as e:
-            print(e)
+            logging.error("error in run_tests ",e)
 
     async def _get_explanation_for_function(
         self, function_identifier, node, project_id
@@ -275,14 +276,14 @@ To help integration test the flow above:
         )
         try:
             json_data = json.loads(text)
-            print("JSON data extracted successfully")
+            logging.info("JSON data extracted successfully")
         except:
             match = re.search(pattern, text)
             if match:
                 try:
                     json_data = json.loads(match.group())
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON: {e}")
+                    logging.error(f"Error decoding JSON: {e}")
         return json_data
 
     async def generate_tests(
@@ -361,9 +362,9 @@ To help integration test the flow above:
             # output = await run_tests(code)
 
         except SyntaxError as e:
-            print(f"Syntax error in generated code: {e}")
+            logging.error(f"Syntax error in generated code: {e}")
             if reruns_if_fail > 0:
-                print("Rerunning...")
+                logging.info("Rerunning...")
                 return await self.generate_tests(
                     plan=plan,
                     function_to_test=function_to_test,

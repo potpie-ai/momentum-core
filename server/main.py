@@ -14,6 +14,11 @@ from server.routers.webhook import router as webhook_router
 from server.router import api_router as code_router
 from server.utils.posthog_middleware import PostHogMiddleware
 import sentry_sdk
+import logging
+from sentry_sdk.integrations.logging import LoggingIntegration
+
+logging.basicConfig(level=logging.INFO)
+
 
 if os.getenv("ENV") == "production":
     sentry_sdk.init(
@@ -25,6 +30,13 @@ if os.getenv("ENV") == "production":
         # of sampled transactions.
         # We recommend adjusting this value in production.
         profiles_sample_rate=1.0,
+        enable_tracing=True,
+        integrations=[
+            LoggingIntegration(
+            level=logging.WARN,        # Capture warn and above as breadcrumbs
+            event_level=logging.WARN   # Send records as events
+            ),
+        ],
     )
 else:
     print("Non Production Environment, Sentry Disabled")

@@ -1,5 +1,6 @@
 
 import json
+import logging
 from typing import List, Dict
 import os 
 from server.utils.ai_helper import get_llm_client   , llm_call,print_messages
@@ -43,7 +44,7 @@ class FlowInference:
     def insert_inference(self, key: str, inference: str, project_id: str, overall_explanation: str, hash: str):
         conn = psycopg2.connect(os.environ['POSTGRES_SERVER'])
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO inference (key, inference, hash, explanation, project_id) VALUES (%s, %s, %s, %s, %s)", (key, inference, hash,overall_explanation, project_id))
+        cursor.execute("INSERT INTO inference (key, inference, hash, explanation, project_id) VALUES (%s, %s, %s, %s, %s)", (key, inference, hash, overall_explanation, project_id))
         conn.commit()
         conn.close()
         
@@ -90,7 +91,7 @@ class FlowInference:
                 paths.append({"path": endpoint[0], "identifier": endpoint[1]})
             
         except psycopg2.Error as e:
-            print("An error occurred: 9", e)
+            logging.error(f"An error occurred in get_endpoints: {e}")
         finally:
             conn.close()
         return paths
@@ -99,7 +100,7 @@ class FlowInference:
     async def explanation_from_function(self,
         function_to_test: str,  # Python function to test, as a string
 ) -> str:
-        print(function_to_test)
+        logging.info(function_to_test)
         """Returns a integration test for a given Python function, using a 3-step GPT prompt."""
 
         # Step 1: Generate an explanation of the function
