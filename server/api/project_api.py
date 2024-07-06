@@ -100,4 +100,4 @@ def delete_project(project_id: int, user=Depends(check_auth)):
                                 "id": project_id
                             })
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"{str(e)}")
+        raise HTTPException(status_code=500, detail=f"{str(e)}")

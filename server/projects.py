@@ -10,8 +10,6 @@ from server.utils.user_service import initialize_db
 
 class ProjectManager:
 
-    is_deleted_condition = "AND is_deleted = false"
-
     def _create_table(self):
         initialize_db()
         conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
@@ -76,7 +74,7 @@ class ProjectManager:
         try:
             conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
             cursor = conn.cursor()
-            cursor.execute(f"SELECT id, directory, is_default FROM projects {self.is_deleted_condition}")
+            cursor.execute(f"SELECT id, directory, is_default FROM projects WHERE is_deleted = false")
             projects = cursor.fetchall()
             for project in projects:
                 project_dict = {
@@ -119,7 +117,7 @@ class ProjectManager:
             conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
             cursor = conn.cursor()
             cursor.execute(
-                f"SELECT id, directory FROM projects WHERE is_default = true {self.is_deleted_condition}"
+                f"SELECT id, directory FROM projects WHERE is_default = true AND is_deleted = false"
             )
             project = cursor.fetchone()
             if project:
@@ -138,7 +136,7 @@ class ProjectManager:
 
             cursor = conn.cursor()
             cursor.execute(
-                f"SELECT id, directory FROM projects WHERE is_default = true  {self.is_deleted_condition}"
+                f"SELECT id, directory FROM projects WHERE is_default = true  AND is_deleted = false"
             )
             project = cursor.fetchone()
             if project:
@@ -184,7 +182,7 @@ class ProjectManager:
                 SELECT project_name, directory, id 
                 FROM projects 
                 WHERE id = %s 
-                {self.is_deleted_condition}
+                AND is_deleted = false
             """,
                 (project_id,),
             )
@@ -211,7 +209,7 @@ class ProjectManager:
                 SELECT project_name, directory, id 
                 FROM projects 
                 WHERE id = %s 
-                {self.is_deleted_condition}
+                AND is_deleted = false
             """,
                 (project_id,),
             )
@@ -238,7 +236,7 @@ class ProjectManager:
                 SELECT project_name, directory, id, repo_name, branch_name
                 FROM projects 
                 WHERE id = %s and user_id = %s 
-                {self.is_deleted_condition}
+                AND is_deleted = false
             """,
                 (project_id, user_id),
             )
@@ -265,7 +263,7 @@ class ProjectManager:
                 SELECT repo_name, branch_name
                 FROM projects 
                 WHERE id = %s 
-                {self.is_deleted_condition}
+                AND is_deleted = false
             """, (project_id,))
 
             result = cursor.fetchone()
@@ -289,7 +287,7 @@ class ProjectManager:
                 SELECT project_name, directory, id 
                 FROM projects 
                 WHERE id = %s and user_id = %s 
-                {self.is_deleted_condition}
+                AND is_deleted = false
             """,
                 (project_id, user_id),
             )
@@ -316,7 +314,7 @@ class ProjectManager:
             # Build the base query
             query = (
                 "SELECT id, branch_name, repo_name, updated_at, is_default,"
-                f" status FROM projects WHERE user_id = %s {self.is_deleted_condition}"
+                f" status FROM projects WHERE user_id = %s AND is_deleted = false"
             )
             params = [user_id]
 
@@ -359,8 +357,8 @@ class ProjectManager:
                 logging.info("Project deleted successfully.")
             conn.commit()
         except psycopg2.Error as e:
-            HTTPException(
-                status_code=400,
+            raise HTTPException(
+                status_code=500,
                 detail="An error occurred while restoring the project"
             )
         finally:
