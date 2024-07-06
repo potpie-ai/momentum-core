@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 import psycopg2
@@ -28,9 +29,9 @@ def cleanup(directory: str):
         cursor.execute("DROP TABLE IF EXISTS nodes")
         cursor.execute("DROP TABLE IF EXISTS edges")
         conn.commit()
-        print("Tables dropped successfully.")
+        logging.info(f"Tables dropped successfully, directory: {directory}")
     except psycopg2.Error as e:
-        print("An error occurred while dropping tables:", e)
+        logging.error(f"An error occurred while dropping tables: {e}")
     finally:
         if conn:
             conn.close()
@@ -54,7 +55,7 @@ def _create_pydantic_table(directory: str):
                             )""")
         conn.commit()
     except psycopg2.Error as e:
-        print("An error occurred: 6", e)
+        logging.error(f"An error occurred: _create_pydantic_table, error: {e}")
     finally:
         if conn:
             conn.close()
@@ -87,7 +88,6 @@ def put_pydantic_class(filepath, classname, definition, project_id):
     conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
     cursor = conn.cursor()
     try:
-
         cursor.execute(
             "INSERT INTO pydantic (filepath,classname,definition, project_id)"
             " VALUES (%s,%s,%s,%s)",
@@ -95,10 +95,7 @@ def put_pydantic_class(filepath, classname, definition, project_id):
         )
         conn.commit()
     except psycopg2.IntegrityError:
-        print(
-            f"Pydantic class with identifier {classname} already exists."
-            " Skipping insert."
-        )
+        logging.warn(f"project_id: {project_id}, Pydantic class with identifier {classname} already exists. Skipping insert.")
     finally:
         if conn:
             conn.close()
@@ -112,7 +109,7 @@ def get_pydantic_class(classname, project_id):
         conn.commit()
 
     except psycopg2.Error as e:
-        print("An error occurred: 7", e)
+        logging.error(f"project_id: {project_id}, An error occurred: get_pydantic_class, error: {e}")
     definitions = cursor.fetchall()
 
     if conn:
@@ -136,7 +133,7 @@ def get_pydantic_classes(classnames, project_id):
         cursor.execute(query, (project_id, *classnames))
         definitions.extend(cursor.fetchall())
     except psycopg2.Error as e:
-        print("An error occurred: 8", e)
+        logging.error(f"project_id: {project_id}, An error occurred: get_pydantic_classes, error: {e}")
     finally:
         if conn:
             conn.close()
@@ -177,7 +174,7 @@ def add_node_safe(
             project_id,
         )
     except psycopg2.IntegrityError:
-        print(f"Node with identifier {function_identifier} already exists. Skipping insert.")
+        logging.error(f"project_id: {project_id}, Node with identifier {function_identifier} already exists. Skipping insert.")
     return function_identifier 
 
 
@@ -195,7 +192,7 @@ def add_class_node_safe(directory, file_path, class_name, start, end, project_id
             project_id,
         )
     except psycopg2.IntegrityError:
-        print(f"Node with identifier {function_identifier} already exists. Skipping insert.")
+        logging.warn(f"project_id: {project_id}, Node with identifier {function_identifier} already exists. Skipping insert.")
     return function_identifier
 
 

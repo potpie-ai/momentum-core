@@ -4,6 +4,8 @@ from itertools import islice
 
 from tree_sitter_languages import get_language, get_parser
 import os
+import argparse
+import logging
 
 # Load Python grammar for Tree-sitter
 parser = get_parser("python")
@@ -80,7 +82,7 @@ def _find_changed_functions(changed_files, repo_path, repo_details, branch_name)
                         internal_path = os.sep+internal_path
                     result.append(f"{internal_path}:{full_name}")
         except FileNotFoundError:
-            print(f"File not found: {file_path}")
+            logging.error(f"_find_changed_functions -> File not found: {file_path}")
     return result
 
 

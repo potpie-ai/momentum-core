@@ -1,3 +1,4 @@
+import logging
 import os
 
 import requests
@@ -23,7 +24,7 @@ class AuthService:
             user_auth_response.raise_for_status()
             return user_auth_response.json()
         except Exception as e:
-            print(f"{log_prefix} {str(e)}")
+            logging.exception(f"{log_prefix} {str(e)}")
             raise Exception(user_auth_response.json())
 
     def signup(self, email, password, name):
@@ -40,5 +41,5 @@ class AuthService:
             user = auth.verify_id_token(jwt)
             return user["user_id"]
         except Exception as e:
-            print(f"{log_prefix} {str(e)}")
+            logging.exception(f"{log_prefix} {str(e)}")
             raise Exception("User not authorised")

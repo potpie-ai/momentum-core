@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Optional
 
@@ -72,7 +73,6 @@ def get_branch_list(
         project_details = project_manager.get_parsed_project_branches(
             repo_name, user_id, default
         )
-        print("project_details", project_details)
         branch_list.extend(
             {
                 "project_id": branch[0],

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 from fastapi import Request
@@ -31,10 +32,10 @@ def initialize_db():
     try:
         cursor.execute(create_table_query)
         conn.commit()
-        print("Table 'users' initialized successfully.")
+        logging.info("Table 'users' initialized successfully.")
     except Exception as e:
         conn.rollback()
-        print(f"Error initializing table: {e}")
+        logging.exception(f"Error initializing table: {e}")
     finally:
         cursor.close()
         conn.close()
@@ -55,10 +56,10 @@ def get_user_id_by_email(email):
         if user_id:
             return user_id[0]
         else:
-            print(f"No user found with email: {email}")
+            logging.info(f"No user found with email: {email}")
             return None
     except Exception as e:
-        print(f"Error retrieving user ID: {e}")
+        logging.exception(f"Error retrieving user ID: {e}")
         return None
     finally:
         cursor.close()
@@ -76,10 +77,10 @@ def get_user_id_by_username(username):
         if user_details:
             return user_details
         else:
-            print(f"No user found with provider username: {username}")
+            logging.info(f"No user found with provider username: {username}")
             return None
     except Exception as e:
-        print(f"Error retrieving user ID: {e}")
+        logging.exception(f"Error retrieving user ID: {e}")
         return None
     finally:
         cursor.close()

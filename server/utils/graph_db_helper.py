@@ -1,4 +1,5 @@
 import json
+import logging
 from neo4j import GraphDatabase
 from server.utils.config import neo4j_config
 
@@ -204,7 +205,7 @@ class Neo4jGraph:
             MATCH (n:Function {id: $node_id, project_id: $project_id})-[:CALLS]->(neighbor:Function)
             RETURN neighbor
             """
-        print(query)
+        logging.info(f"project_id : {project_id}, _fetch_first_order_neighbors: query: {query}")
         result = tx.run(query, node_id=node_id, project_id=project_id)
         return [dict(record["neighbor"]) for record in result]
 

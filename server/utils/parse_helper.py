@@ -1,7 +1,8 @@
+import logging
 import os
 import shutil
 import tarfile
-
+import logging
 import requests
 from fastapi import HTTPException
 
@@ -13,44 +14,61 @@ project_manager = ProjectManager()
 neo4j_graph = Neo4jGraph()
 
 
-def download_and_extract_tarball(
-    owner, repo, branch, target_dir, auth, repo_details, user_id
-):
-    tarball_url = repo_details.get_archive_link("tarball", branch)
-    #This might be f"token {auth.token}"
-    response = requests.get(
-        tarball_url,
-        stream=True,
-        headers={"Authorization": f"{auth.token}"},
-    )
-    response.raise_for_status()  # Check for request errors
+def download_and_extract_tarball(owner, repo, branch, target_dir, auth, repo_details, user_id):
+    try:
+        tarball_url = repo_details.get_archive_link("tarball", branch)
+        response = requests.get(
+            tarball_url,
+            stream=True,
+            headers={"Authorization": f"{auth.token}"},
+        )
+        response.raise_for_status()  # Check for request errors
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error fetching tarball: {e}")
+        return e
+
     tarball_path = os.path.join(target_dir, f"{repo}-{branch}.tar.gz")
-    with open(tarball_path, "wb") as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            f.write(chunk)
+    try:
+        with open(tarball_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+    except IOError as e:
+        logging.error(f"Error writing tarball to file: {e}")
+        return e
 
     temp_extract_dir = os.path.join(target_dir, f'{repo}-{branch}-{user_id}')
-    # Extract the tarball
-    with tarfile.open(tarball_path, "r:gz") as tar:
-        for member in tar.getmembers():
-            member_path = os.path.join(
-                temp_extract_dir,
-                os.path.relpath(member.name, start=member.name.split("/")[0]),
-            )
-            if member.isdir():
-                os.makedirs(member_path, exist_ok=True)
-            else:
-                member_dir = os.path.dirname(member_path)
-                if not os.path.exists(member_dir):
-                    os.makedirs(member_dir)
-                with open(member_path, "wb") as f:
-                    if member.size > 0:
-                        f.write(tar.extractfile(member).read())
+    try:
+        with tarfile.open(tarball_path, "r:gz") as tar:
+            for member in tar.getmembers():
+                member_path = os.path.join(
+                    temp_extract_dir,
+                    os.path.relpath(member.name, start=member.name.split("/")[0]),
+                )
+                if member.isdir():
+                    os.makedirs(member_path, exist_ok=True)
+                else:
+                    member_dir = os.path.dirname(member_path)
+                    if not os.path.exists(member_dir):
+                        os.makedirs(member_dir)
+                    with open(member_path, "wb") as f:
+                        if member.size > 0:
+                            f.write(tar.extractfile(member).read())
+    except (tarfile.TarError, IOError) as e:
+        logging.error(f"Error extracting tarball: {e}")
+        return e
 
-    os.remove(tarball_path)
+    try:
+        os.remove(tarball_path)
+    except OSError as e:
+        logging.error(f"Error removing tarball: {e}")
+        return e
 
     final_dir = os.path.join(target_dir, f"{repo}-{branch}-{user_id}")
-    shutil.move(temp_extract_dir, final_dir)
+    try:
+        shutil.move(temp_extract_dir, final_dir)
+    except shutil.Error as e:
+        logging.error(f"Error moving extracted directory: {e}")
+        return e
 
     return final_dir
 
@@ -96,9 +114,9 @@ def delete_folder(folder_path):
     try:
         if os.path.exists(folder_path) and os.path.isdir(folder_path):
             shutil.rmtree(folder_path, ignore_errors=True)
-            print(f"deleted {folder_path}")
+            logging.info(f"deleted {folder_path}")
         else:
             raise HTTPException(status_code=404, detail="Project Folder not found")
     except Exception as e:
-        print(str(e))
+        logging.exception(f"Error in deleting folder: {str(e)}")
         raise HTTPException(status_code=400, detail="Error deleting Project Folder.")
