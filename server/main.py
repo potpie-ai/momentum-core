@@ -1,6 +1,9 @@
 import os
+import sentry_sdk
+import logging
 
 from dotenv import load_dotenv
+from server.firebase_setup import firebase_init
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,18 +12,21 @@ load_dotenv()
 
 from server.api.project_api import api_router_project
 from server.api.routers.auth import auth_router
-from server.firebase_setup import firebase_init
+from server.key_management.secret_manager import router as secret_router
 from server.routers.webhook import router as webhook_router
 from server.router import api_router as code_router
+
 from server.utils.posthog_middleware import PostHogMiddleware
-import sentry_sdk
-import logging
 from sentry_sdk.integrations.logging import LoggingIntegration
+
 
 logging.basicConfig(level=logging.INFO)
 
+app = FastAPI()
 
 if os.getenv("ENV") == "production":
+    posthog_api_key = os.getenv("POSTHOG_PROJECT_KEY")
+    app.add_middleware(PostHogMiddleware, posthog_api_key=posthog_api_key)
     sentry_sdk.init(
         dsn=os.getenv("SENTRY_DSN"),
         # Set traces_sample_rate to 1.0 to capture 100%
@@ -39,11 +45,10 @@ if os.getenv("ENV") == "production":
         ],
     )
 else:
-    print("Non Production Environment, Sentry Disabled")
+    print("Non Production Environment, Posthog & Sentry Disabled")
 
-app = FastAPI()
+
 origins = ["*"]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -51,7 +56,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 def setup_project_dir():
     current_dir = os.getcwd()
@@ -74,19 +78,14 @@ def check_and_set_env_vars():
             os.environ[env_var] = value
 
 
-if os.getenv("ENV") == "production":
-    posthog_api_key = os.getenv("POSTHOG_PROJECT_KEY")
-    app.add_middleware(PostHogMiddleware, posthog_api_key=posthog_api_key)
-else:
-    print("Non Production Environment, Posthog Middleware Disabled")
-
-
 setup_project_dir()
 firebase_init()
 check_and_set_env_vars()
+
 app.include_router(code_router)
 app.include_router(api_router_project)
 app.include_router(router=auth_router)
+app.include_router(secret_router)
 app.include_router(router=webhook_router)
 
 @app.get("/health")

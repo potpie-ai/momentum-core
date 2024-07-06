@@ -5,9 +5,9 @@ import certifi
 from mongoengine import StringField, Document, IntField, DateTimeField, connect, BooleanField
 
 connect(
-    'test',
+    os.getenv("MONGO_DB_NAME", "test"),
     host=os.getenv("MONGO_URI", "mongodb://localhost:27017"),
-    tlsCAFile=certifi.where()
+    # tlsCAFile=certifi.where()
 )
 
 
