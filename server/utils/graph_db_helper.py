@@ -1,6 +1,8 @@
 import json
 import logging
 from neo4j import GraphDatabase
+from neo4j.exceptions import Neo4jError
+
 from server.utils.config import neo4j_config
 
 class Neo4jDriverSingleton:
@@ -87,70 +89,86 @@ class Neo4jGraph:
 
     @staticmethod
     def _get_class_hierarchy(tx, class_name, project_id):
-        query = """
-        MATCH (derived:Function {class_name: $class_name, project_id: $project_id})
-        CALL {
-            WITH derived
-            MATCH path = (derived)-[:EXTENDS*0..]->(base)
-            RETURN base AS node, length(path) AS depth
-            ORDER BY depth
-        }
-        RETURN DISTINCT node
-        ORDER BY depth
-        """
-        result = tx.run(query, class_name=class_name, project_id=project_id)
+        try:
+            query = """
+                MATCH (derived:Function {class_name: $class_name, project_id: $project_id})
+                CALL {
+                    WITH derived
+                    MATCH path = (derived)-[:EXTENDS*0..]->(base)
+                    RETURN base AS node, length(path) AS depth
+                    ORDER BY depth
+                }
+                RETURN DISTINCT node
+                ORDER BY depth
+                """
+            result = tx.run(query, class_name=class_name, project_id=project_id)
 
-        class_hierarchy = []
-        for record in result:
-            node = record["node"]
-            class_info = {
-                "filepath": node["file"],
-                "class_name": node["class_name"],
-                "start": node["start"],
-                "end": node["end"],
-                "id": node["id"],
-                "project_id": node["project_id"]
-            }
-            class_hierarchy.append(class_info)
+            class_hierarchy = []
+            for record in result:
+                node = record["node"]
+                class_info = {
+                    "filepath": node["file"],
+                    "class_name": node["class_name"],
+                    "start": node["start"],
+                    "end": node["end"],
+                    "id": node["id"],
+                    "project_id": node["project_id"]
+                }
+                class_hierarchy.append(class_info)
 
-        return class_hierarchy
+            return class_hierarchy
+
+        except Neo4jError as neo4j_error:
+            logging.error(f"Neo4j error in fetching class hierarchy for extends relatio: {neo4j_error}")
+            return []
+        except Exception as e:
+            logging.error(f"Unexpected error in _get_class_hierarchy: {e}")
+            return []
 
     @staticmethod
     def _get_multiple_class_hierarchies(tx, classnames, project_id):
-        query = """
-        MATCH (derived:Function)
-        WHERE derived.class_name IN $classnames AND derived.project_id = $project_id
-        MATCH path = (derived)-[:EXTENDS*0..]->(base)
-        WITH derived.class_name AS root_class_name, base AS node, length(path) AS depth
-        ORDER BY root_class_name, depth
-        RETURN DISTINCT root_class_name, node, depth
-        """
-        result = tx.run(query, classnames=classnames, project_id=project_id)
+        try:
+            query = """
+                MATCH (derived:Function)
+                WHERE derived.class_name IN $classnames AND derived.project_id = $project_id
+                MATCH path = (derived)-[:EXTENDS*0..]->(base)
+                WITH derived.class_name AS root_class_name, base AS node, length(path) AS depth
+                ORDER BY root_class_name, depth
+                RETURN DISTINCT root_class_name, node, depth
+                """
+            result = tx.run(query, classnames=classnames, project_id=project_id)
 
-        class_hierarchies = []
-        seen_nodes = set()
-        for record in result:
-            node = record["node"]
-            root_classname = record["root_class_name"]
+            class_hierarchies = []
+            seen_nodes = set()
+            for record in result:
+                node = record["node"]
+                root_classname = record["root_class_name"]
 
-            # Check if we've already added this node
-            if node.id in seen_nodes:
-                continue
+                # Check if we've already added this node
+                if node.id in seen_nodes:
+                    continue
 
-            seen_nodes.add(node.id)
+                seen_nodes.add(node.id)
 
-            class_info = {
-                "filepath": node["file"],
-                "classname": node["class_name"],
-                "start": node["start"],
-                "end": node["end"],
-                "id": node["id"],
-                "root_classname": root_classname,
-                "project_id": node["project_id"]
-            }
-            class_hierarchies.append(class_info)
+                class_info = {
+                    "filepath": node["file"],
+                    "classname": node["class_name"],
+                    "start": node["start"],
+                    "end": node["end"],
+                    "id": node["id"],
+                    "root_classname": root_classname,
+                    "project_id": node["project_id"]
+                }
+                class_hierarchies.append(class_info)
 
-        return class_hierarchies
+            return class_hierarchies
+
+        except Neo4jError as neo4j_error:
+            logging.error(f"Neo4j error in fetching class hierarchy for extends relation: {neo4j_error}")
+            return []
+        except Exception as e:
+            logging.error(f"Unexpected error in _get_multiple_class_hierarchies: {e}")
+            return []
 
     @staticmethod
     def _delete_nodes_by_project_id(tx, project_id):
@@ -351,13 +369,16 @@ class Neo4jGraph:
 
     @staticmethod
     def _add_extends_relationship(tx, base_class_id, derived_class_id, project_id):
-        query = """
-        MATCH (base:Function {id: $base_class_id, project_id: $project_id}),
-              (derived:Function {id: $derived_class_id, project_id: $project_id})
-        MERGE (derived)-[r:EXTENDS]->(base)
-        RETURN r
-        """
-        tx.run(query, base_class_id=base_class_id, derived_class_id=derived_class_id, project_id=project_id)
+        try:
+            query = """
+                MATCH (base:Function {id: $base_class_id, project_id: $project_id}),
+                      (derived:Function {id: $derived_class_id, project_id: $project_id})
+                MERGE (derived)-[r:EXTENDS]->(base)
+                RETURN r
+                """
+            tx.run(query, base_class_id=base_class_id, derived_class_id=derived_class_id, project_id=project_id)
+        except Exception as e:
+            print(f"Error in adding extends relationship in database: {e}")
 
     def atomic_transaction(self, operations):
         with self.driver.session() as session:
