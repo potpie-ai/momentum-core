@@ -119,7 +119,7 @@ class Neo4jGraph:
             return class_hierarchy
 
         except Neo4jError as neo4j_error:
-            logging.error(f"Neo4j error in fetching class hierarchy for extends relatio: {neo4j_error}")
+            logging.error(f"Neo4j error in fetching class hierarchy for extends relation: {neo4j_error}")
             return []
         except Exception as e:
             logging.error(f"Unexpected error in _get_class_hierarchy: {e}")
@@ -377,8 +377,10 @@ class Neo4jGraph:
                 RETURN r
                 """
             tx.run(query, base_class_id=base_class_id, derived_class_id=derived_class_id, project_id=project_id)
+        except Neo4jError as neo4j_error:
+            logging.error(f"Neo4j error in creating class hierarchy for extends relation: {neo4j_error}")
         except Exception as e:
-            print(f"Error in adding extends relationship in database: {e}")
+            logging.error(f"Error in adding extends relationship in database: {e}")
 
     def atomic_transaction(self, operations):
         with self.driver.session() as session:

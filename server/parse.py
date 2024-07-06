@@ -13,7 +13,6 @@ from server.utils.parse_helper import delete_folder
 
 parser = get_parser("python")
 
-# Initialize SQLite Database and Graph
 codebase_map = f"/.momentum/momentum.db"
 neo4j_graph = Neo4jGraph()
 
