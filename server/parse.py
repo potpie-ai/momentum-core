@@ -24,7 +24,6 @@ def cleanup(directory: str):
     conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
     cursor = conn.cursor()
     try:
-        cursor.execute("DROP TABLE IF EXISTS pydantic")
         cursor.execute("DROP TABLE IF EXISTS endpoints")
         cursor.execute("DROP TABLE IF EXISTS nodes")
         cursor.execute("DROP TABLE IF EXISTS edges")
@@ -32,30 +31,6 @@ def cleanup(directory: str):
         logging.info(f"Tables dropped successfully, directory: {directory}")
     except psycopg2.Error as e:
         logging.error(f"An error occurred while dropping tables: {e}")
-    finally:
-        if conn:
-            conn.close()
-
-
-def _create_pydantic_table(directory: str):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-
-    cursor = conn.cursor()
-    try:
-
-        cursor.execute("""CREATE TABLE IF NOT EXISTS pydantic (
-                            filepath TEXT,
-                            classname TEXT,
-                            definition TEXT,
-                            PRIMARY KEY (filepath, classname),
-                            project_id integer NOT NULL,
-                            CONSTRAINT fk_project FOREIGN KEY (project_id)
-                            REFERENCES projects (id)
-                            ON DELETE CASCADE
-                            )""")
-        conn.commit()
-    except psycopg2.Error as e:
-        logging.error(f"An error occurred: _create_pydantic_table, error: {e}")
     finally:
         if conn:
             conn.close()
@@ -79,23 +54,6 @@ def _create_explanation_table_if_not_exists(directory: str):
             )
         """)
         conn.commit()
-    finally:
-        if conn:
-            conn.close()
-
-
-def put_pydantic_class(filepath, classname, definition, project_id):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            "INSERT INTO pydantic (filepath,classname,definition, project_id)"
-            " VALUES (%s,%s,%s,%s)",
-            (filepath, classname, definition, project_id),
-        )
-        conn.commit()
-    except psycopg2.IntegrityError:
-        logging.warn(f"project_id: {project_id}, Pydantic class with identifier {classname} already exists. Skipping insert.")
     finally:
         if conn:
             conn.close()
@@ -856,7 +814,6 @@ def extract_function_metadata(node, parameters=[], class_context=None):
 
 # todo: optimise for single run
 async def analyze_directory(directory, user_id, project_id):
-    _create_pydantic_table(directory)
     _create_explanation_table_if_not_exists(directory)
     user_defined_functions = {}
     file_index = {}
