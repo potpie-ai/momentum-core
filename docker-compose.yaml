@@ -48,7 +48,7 @@ services:
 
   redis:
     image: redis:latest
-    container_name: redis
+    container_name: redis_broker
     ports:
       - "6379:6379"
     volumes:
@@ -76,6 +76,24 @@ services:
       DEFAULT_VECTORIZER_MODULE: 'none'
       ENABLE_MODULES: ''
       CLUSTER_HOSTNAME: 'node1'
+
+  knowledge-graph:
+    build: ./knowledge_graph
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+
+  momentum:
+    build: .
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
+    env_file:
+      - .env
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/tmp/keys/application_default_credentials.json:ro
+    ports:
+      - "8001:8001"
 
 volumes:
   postgres-data:
