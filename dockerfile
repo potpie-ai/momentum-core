@@ -10,6 +10,9 @@ COPY requirements.txt .
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy the .env file into the container
+COPY .env .env
+
 # Copy the rest of the application code into the container
 COPY . .
 
@@ -23,5 +26,5 @@ ENV PYTHONUNBUFFERED=1
 HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
-# Command to run the application
-CMD ["gunicorn", "--worker-class", "uvicorn.workers.UvicornWorker", "--timeout", "1800", "--bind", "0.0.0.0:8001", "--log-level", "debug", "server.main:app"]
+# Command to run the application with migrations
+CMD ["sh", "-c", "alembic upgrade head && gunicorn --worker-class uvicorn.workers.UvicornWorker --timeout 1800 --bind 0.0.0.0:8001 --log-level debug server.main:app"]
