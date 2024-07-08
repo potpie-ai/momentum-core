@@ -76,3 +76,19 @@ class GithubService:
         finally:
             github.close()
             return method_content
+        
+    @staticmethod
+    def comment_on_pr(repo_name, issue_number, comment, installation_auth):
+        owner = repo_name.split('/')[0]
+        repo = repo_name.split('/')[1]
+        data = {
+            "body":comment
+        }
+        url = f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}/comments"
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {installation_auth.token}",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+
+        return requests.post(url, headers=headers, json=data)
