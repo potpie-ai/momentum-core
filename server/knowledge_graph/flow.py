@@ -1,11 +1,10 @@
-import json
+import logging
 from typing import List, Dict
-import os
 from server.utils.ai_helper import get_llm_client, llm_call, print_messages
 from langchain.schema import SystemMessage, HumanMessage
 import hashlib
 from server.db.session import SessionManager
-from server.schemas import Inference, Explanation, Project, Endpoint, Explanation, Pydantic
+from server.schemas import Inference, Explanation, Endpoint, Explanation
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
 
@@ -67,7 +66,7 @@ class FlowInference:
             return [{"path": endpoint.path, "identifier": endpoint.identifier} for endpoint in endpoints]
 
     async def explanation_from_function(self, function_to_test: str) -> str:
-        print(function_to_test)
+        logging.info(function_to_test)
         """Returns a integration test for a given Python function, using a 3-step GPT prompt."""
 
         # Step 1: Generate an explanation of the function

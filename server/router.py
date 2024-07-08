@@ -1,3 +1,4 @@
+import logging
 import os
 import traceback
 from typing import List, Optional
@@ -11,6 +12,7 @@ from fastapi import Depends, HTTPException
 from server.utils.APIRouter import APIRouter
 from fastapi.requests import Request
 from github import Github
+from github.GithubException import UnknownObjectException
 from server.models.repo_details import (
     PreferenceDetails,
     ProjectStatusEnum,
@@ -28,7 +30,6 @@ from server.plan import Plan
 from server.projects import ProjectManager
 from pydantic import BaseModel
 
-from server.change_detection import get_updated_function_list
 from server.blast_radius_detection import get_paths_from_identifiers
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
@@ -163,10 +164,7 @@ def get_blast_radius_details(
             additions = sum(file.additions for file in git_diff.files)
             deletions = sum(file.deletions for file in git_diff.files)
             lines_impacted = additions + deletions
-            print({
-                "added_commits": added_commits,
-                "lines_impacted": lines_impacted
-            })
+            logging.info(f"project_id: {project_id}, added_commits: {added_commits}, lines_impacted: {lines_impacted}")
             request.state.additional_data = {
                 "added_commits": added_commits,
                 "lines_impacted": lines_impacted
@@ -181,7 +179,7 @@ def get_blast_radius_details(
                 try:
                     identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
                 except Exception as e:
-                    print(str(e))
+                    logging.error(f"project_id: {project_id}, error: {str(e)}")
                     if "path not in the working tree" in str(e):
                         base_branch = "main"
                         identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)

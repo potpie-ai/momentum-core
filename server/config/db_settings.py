@@ -23,7 +23,7 @@ class DBSettings:
 db_settings = DBSettings()
 
 if __name__ == "__main__":
-    print(db_settings.POSTGRES_SERVER)
-    print(db_settings.POSTGRES_USER)
-    print(db_settings.POSTGRES_PASSWORD)
-    print(db_settings.POSTGRES_DB)
+    logger.info(db_settings.POSTGRES_SERVER)
+    logger.info(db_settings.POSTGRES_USER)
+    logger.info(db_settings.POSTGRES_PASSWORD)
+    logger.info(db_settings.POSTGRES_DB)

@@ -2,6 +2,7 @@ from server.db.session import SessionManager
 from server.crud import crud_utils
 from server.models.repo_details import ProjectStatusEnum
 from server.schemas import Project
+import logging
 
 class ProjectManager:
     def register_project(self, directory: str, project_name: str, repo_name: str, branch_name: str, user_id: str, commit_id: str, default: bool, project_id: int = None):
@@ -15,7 +16,7 @@ class ProjectManager:
                 project = crud_utils.create_project(db, project)
                 message = f"Project '{project_name}' registered successfully."
                 project_id = project.id
-        print(message)
+            logging.info(message)
         return project_id
 
     def list_projects(self, user_id: str):
@@ -34,7 +35,7 @@ class ProjectManager:
     def update_project_status(self, project_id: int, status: ProjectStatusEnum):
         with SessionManager() as db:
             crud_utils.update_project(db, project_id, status=status.value)
-            print(f"Project with ID {project_id} has now been updated with status {status}.")
+            logging.info(f"Project with ID {project_id} has now been updated with status {status}.")
 
     def get_active_project(self, user_id: str):
         with SessionManager() as db:

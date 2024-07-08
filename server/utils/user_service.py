@@ -1,4 +1,5 @@
 import os
+import logging
 from fastapi import Request
 from sqlalchemy.orm import Session
 from server.db.session import SessionManager
@@ -15,7 +16,7 @@ def get_user_id_by_email(email: str):
         if user:
             return user.uid
         else:
-            print(f"No user found with email: {email}")
+            logging.info(f"No user found with email: {email}")
             return None
 
 def get_user_id_by_username(username: str):
@@ -24,7 +25,7 @@ def get_user_id_by_username(username: str):
         if user:
             return user.uid, user.email
         else:
-            print(f"No user found with provider username: {username}")
+            logging.info(f"No user found with provider username: {username}")
             return None
 
 def add_users_to_additional_data(request: Request, user_details: dict):

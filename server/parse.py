@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 import psycopg2
@@ -34,7 +35,7 @@ def put_pydantic_class(filepath, classname, definition, project_id):
             db.commit()
         except Exception as e:
             db.rollback()
-            print(
+            logging.info(
                 f"Pydantic class with identifier {classname} already exists."
                 " Skipping insert."
             )
@@ -47,7 +48,7 @@ def get_pydantic_class(classname, project_id):
                 Pydantic.classname == classname
             ).all()
         except Exception as e:
-            print("An error occurred: 7", e)
+            logging.error("An error occurred: 7", e)
             definitions = []
 
     current_dir = os.getcwd()
@@ -69,7 +70,7 @@ def get_pydantic_classes(classnames, project_id):
                 Pydantic.classname.in_(classnames)
             ).all()
         except Exception as e:
-            print("An error occurred: 8", e)
+            logging.error("An error occurred: 8", e)
             definitions = []
 
     current_dir = os.getcwd()
@@ -108,7 +109,7 @@ def add_node_safe(
             project_id,
         )
     except psycopg2.IntegrityError:
-        print(f"Node with identifier {function_identifier} already exists. Skipping insert.")
+        logging.error(f"project_id: {project_id}, Node with identifier {function_identifier} already exists. Skipping insert.")
     return function_identifier 
 
 
@@ -126,7 +127,7 @@ def add_class_node_safe(directory, file_path, class_name, start, end, project_id
             project_id,
         )
     except psycopg2.IntegrityError:
-        print(f"Node with identifier {function_identifier} already exists. Skipping insert.")
+        logging.warn(f"project_id: {project_id}, Node with identifier {function_identifier} already exists. Skipping insert.")
     return function_identifier
 
 

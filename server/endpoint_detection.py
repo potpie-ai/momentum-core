@@ -8,6 +8,8 @@ import os
 from server.db.session import SessionManager
 from server.knowledge_graph.flow import understand_flows
 from server.schemas import Project, Endpoint, Explanation, Pydantic
+import logging
+
 from tree_sitter_languages import get_language, get_parser
 from fastapi import HTTPException
 from server.utils.github_helper import GithubService
@@ -153,7 +155,7 @@ class EndpointManager:
                                         if not view_name.endswith("as_view")
                                         else view_name.rsplit(".", 1)[0]
                                     )
-                                    print(view_name)
+                                    logging.info(f"project_id: {project_id} identify_django_endpoints -> view_name : ,{view_name}")
                                     file_path, identifier = (
                                         self.resolve_called_view_name(
                                             view,
@@ -163,7 +165,7 @@ class EndpointManager:
                                             view_type,
                                         )
                                     )
-                                    print(file_path, identifier)
+                                    logging.info(f"project_id: {project_id} identify_django_endpoints -> file_path : ,{file_path},  and identifier : {identifier}")
                                     if identifier:
                                         entry_point = (
                                             file_path.replace(
@@ -495,14 +497,14 @@ class EndpointManager:
         with SessionManager() as db:
             endpoints = db.query(Endpoint).filter(Endpoint.project_id == project_id).all()
             paths = {}
-        for endpoint in endpoints:
-            filename = endpoint.identifier.split(":")[0]
-            if filename not in paths:
-                paths[filename] = []
-            paths[filename].append(
-                {"entryPoint": endpoint.path, "identifier": endpoint.identifier}
-            )
-        return paths
+            for endpoint in endpoints:
+                filename = endpoint.identifier.split(":")[0]
+                if filename not in paths:
+                    paths[filename] = []
+                paths[filename].append(
+                    {"entryPoint": endpoint.path, "identifier": endpoint.identifier}
+                )
+            return paths
 
     def delete_endpoints(self, project_id, user_id):
         with SessionManager() as db:
@@ -513,7 +515,7 @@ class EndpointManager:
                 )
             ).delete()
             db.commit()
-        print(f"Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
+        logging.info(f"Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
 
     def delete_pydantic_entries(self, project_id, user_id):
         with SessionManager() as db:
@@ -524,7 +526,7 @@ class EndpointManager:
                 )
             ).delete()
             db.commit()
-        print(f"Pydantic entries with project_id {project_id} and user_id {user_id} deleted successfully.")
+        logging.info(f"Pydantic entries with project_id {project_id} and user_id {user_id} deleted successfully.")
 
 
     def update_test_plan(self, identifier, plan, project_id):
