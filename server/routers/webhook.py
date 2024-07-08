@@ -197,7 +197,6 @@ async def handle_open_pr(request, payload):
 
     #Fetching user id from database
     user_id = project_manager.get_first_user_id_from_project_repo_name(repo_name)
-
     #Create project for the branch & parsing it
     dir_details, project_id = setup_project_directory(
         owner,
@@ -205,7 +204,7 @@ async def handle_open_pr(request, payload):
         branch_name,
         installation_auth,
         repo_details,
-        user_id,
+        user_id[0],
         project_id=None
     )
     await analyze_directory(dir_details, user_id, project_id)
@@ -215,7 +214,6 @@ async def handle_open_pr(request, payload):
 
     #Get blast radius using base branch name
     blast_radius = get_blast_radius_details(project_id, repo_name, branch_name, installation_auth, base_branch_name)
-
     #Parsing the blast radius as a markdown table
     blast_radius = parse_blast_radius_to_markdown(blast_radius)
 
@@ -233,10 +231,11 @@ async def handle_comment_with_mention(request, payload, comment):
 
     #generating auth & creating github object
     installation_auth = get_installation_auth(payload)
+    github = Github(auth=installation_auth)
     #Fetch PR
     pr_response = fetch_pr(repo_name, issue_number, installation_auth)
     branch_name = pr_response.json()["head"]["ref"]
-    
+    github.close()
     #Fetching project details & userid from database
     project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
     user_id = project_manager.get_first_user_id_from_project_repo_name(repo_name)
@@ -248,7 +247,7 @@ async def handle_comment_with_mention(request, payload, comment):
     if test_plan is None:
         try:
             test_plan = await Plan(
-                user_id
+                user_id[0]
             ).generate_test_plan_for_endpoint(identifier, project_details)
         except:
             test_plan = ""
@@ -304,6 +303,9 @@ def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, 
             )
             github.close()
             return paths
+        else:
+            github.close()
+            return []
         
 def fetch_pr(repo_name, pull_number, installation_auth):
         owner = repo_name.split('/')[0]
