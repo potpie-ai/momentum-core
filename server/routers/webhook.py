@@ -32,6 +32,7 @@ project_manager = ProjectManager()
 async def github_app(request: Request):
     github_event = request.headers.get("X-GitHub-Event")
     payload = await request.body()
+    logging.info(f"Received webhook event: {payload}")
     await handle_request(request, github_event, payload)
     return Response(status_code=200)
 
@@ -142,9 +143,9 @@ async def handle_request(request, github_event, payload):
         if state == "open" and "/plan" in comment.lower() and f"@{bot_name}" in comment.lower():
             await handle_comment_with_mention(request, json_payload, comment)
     elif github_event == "pull_request":
-        if github_action == "opened":
+        if github_action == "opened" :
             await handle_open_pr(request, json_payload)
-        elif github_action == "synchronize":
+        elif github_action == "synchronize" or github_action == "reopened":
             await handle_update_pr(request, json_payload)
         elif github_action == "closed":
             pass
@@ -227,18 +228,21 @@ async def handle_comment_with_mention(request, payload, comment):
     # branch_name = payload['pull_request']['head']['ref']
     issue_number = payload['issue']['number']
     comment_list = comment.split(" ")
-    identifier = comment_list[comment_list.index("/plan") + 1]
 
     #generating auth & creating github object
     installation_auth = get_installation_auth(payload)
     github = Github(auth=installation_auth)
-    #Fetch PR
-    pr_response = fetch_pr(repo_name, issue_number, installation_auth)
-    branch_name = pr_response.json()["head"]["ref"]
-    github.close()
+    repo = github.get_repo(repo_name)
+    pull_request = repo.get_pull(issue_number)
+    branch_name = pull_request.head.ref
     #Fetching project details & userid from database
     project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
-    user_id = project_manager.get_first_user_id_from_project_repo_name(repo_name)
+    endpoint_path = " ".join(comment_list[comment_list.index("/plan") + 1:])
+    user_id = project_details[3]
+    
+    identifier = EndpointManager(
+        project_details[1]
+    ).get_endpoint_id_from_path(endpoint_path, project_details[2])
 
     #Fetch test plan for specified identifier
     test_plan = EndpointManager(
@@ -247,13 +251,32 @@ async def handle_comment_with_mention(request, payload, comment):
     if test_plan is None:
         try:
             test_plan = await Plan(
-                user_id[0]
+                user_id
             ).generate_test_plan_for_endpoint(identifier, project_details)
         except:
-            test_plan = ""
+            test_plan = {}
+        
     #Commenting on PR with test plan info.
     if test_plan != "":
-        GithubService.comment_on_pr(repo_name, issue_number, test_plan, installation_auth)
+        test_plan_comment = f"Test plan for {endpoint_path}:\n" + test_plan_to_markdown(test_plan)
+        pull_request.create_issue_comment(test_plan_comment)
+        github.close()
+        
+
+def test_plan_to_markdown(test_plan):
+    # Extract the keys from the dictionary
+    keys = list(test_plan.keys())
+
+    # Initialize the markdown table string with the "Category" column
+    table = "| Category | Description |\n"
+    table += "|----------|-------------|\n"
+
+    # Iterate over the keys and their corresponding values
+    for key in keys:
+        for item in test_plan[key]:
+            table += f"| {key} | {item} |\n"
+
+    return table
 
 def get_installation_auth(payload):
     private_key = "-----BEGIN RSA PRIVATE KEY-----\n" + os.environ[
@@ -307,15 +330,3 @@ def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, 
             github.close()
             return []
         
-def fetch_pr(repo_name, pull_number, installation_auth):
-        owner = repo_name.split('/')[0]
-        repo = repo_name.split('/')[1]
-
-        url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}"
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {installation_auth.token}",
-            "X-GitHub-Api-Version": "2022-11-28"
-        }
-
-        return requests.get(url, headers=headers)

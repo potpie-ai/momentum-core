@@ -301,7 +301,7 @@ class ProjectManager:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT project_name, directory, id 
+                SELECT project_name, directory, id , user_id
                 FROM projects 
                 WHERE repo_name = %s and branch_name = %s
                 ORDER BY id ASC
