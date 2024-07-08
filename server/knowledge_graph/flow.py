@@ -8,7 +8,7 @@ from langchain.schema import SystemMessage, HumanMessage
 import hashlib
 import psycopg2
 from server.utils.github_helper import GithubService
-from utils.graph_db_helper import Neo4jGraph
+from server.utils.graph_db_helper import Neo4jGraph
 neo4j_graph = Neo4jGraph()
 
 
