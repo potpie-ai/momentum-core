@@ -197,20 +197,36 @@ async def handle_open_pr(payload):
 
     #Fetching user id from database
     user_id = project_manager.get_first_user_id_from_project_repo_name(repo_name)
-    #Create project for the branch & parsing it
-    dir_details, project_id = setup_project_directory(
-        owner,
-        repo_name.split("/")[-1],
-        branch_name,
-        installation_auth,
-        repo_details,
-        user_id[0],
-        project_id=None
-    )
-    await analyze_directory(dir_details, user_id, project_id)
-    project_manager.update_project_status(
-        project_id, ProjectStatusEnum.READY
-    )
+    #Fetching project details from database if exists:
+    project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
+    if project_details is None:
+        #Create project for the branch & parsing it
+        dir_details, project_id = setup_project_directory(
+            owner,
+            repo_name.split("/")[-1],
+            branch_name,
+            installation_auth,
+            repo_details,
+            user_id[0],
+            project_id=None
+        )
+        await analyze_directory(dir_details, user_id, project_id)
+        logging.info("The project has been parsed successfully")
+        project_manager.update_project_status(
+            project_id, ProjectStatusEnum.READY
+        )
+    else:
+        project_id = project_details[2]
+        if GithubService.check_is_commit_added(repo_details, project_details, branch_name):
+            reparse_cleanup(project_details, user_id)
+            dir_details, project_id = setup_project_directory(owner, repo_name,
+                                                                branch_name, installation_auth, repo_details, user_id,
+                                                                project_id)
+            await analyze_directory(dir_details, user_id, project_id)
+            logging.info("The project has been re-parsed successfully")
+            project_manager.update_project_status(
+                project_id, ProjectStatusEnum.READY
+            )
 
     #Get blast radius using base branch name
     blast_radius = get_blast_radius_details(project_id, repo_name, branch_name, installation_auth, base_branch_name)
