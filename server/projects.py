@@ -295,6 +295,60 @@ class ProjectManager:
             if "conn" in locals() and conn:
                 conn.close()
 
+    def get_first_project_from_db_by_repo_name_branch_name(self, repo_name, branch_name):
+        try:
+            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT project_name, directory, id 
+                FROM projects 
+                WHERE repo_name = %s and branch_name = %s
+                ORDER BY id ASC
+            """,
+                (repo_name, branch_name),
+            )
+
+            project = cursor.fetchone()
+            if project:
+                return project
+            else:
+                return None
+
+        except psycopg2.Error as e:
+            logging.error(f"get_first_project_from_db_by_repo_name_branch_name - An error occurred: {e}")
+
+        finally:
+            if "conn" in locals() and conn:
+                conn.close()
+
+    def get_first_user_id_from_project_repo_name(self, repo_name):
+        try:
+            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT user_id
+                FROM projects 
+                WHERE repo_name = %s
+                ORDER BY id ASC
+            """,
+                (repo_name, )
+            )
+
+            project = cursor.fetchone()
+            if project:
+                return project
+            else:
+                return None
+
+        except psycopg2.Error as e:
+            logging.error(f"get_first_user_id_from_project_repo_name - An error occurred: {e}")
+
+        finally:
+            if "conn" in locals() and conn:
+                conn.close()
+
     def get_parsed_project_branches(self, repo_name, user_id, default):
         try:
             conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
