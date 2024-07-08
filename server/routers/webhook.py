@@ -234,7 +234,7 @@ async def handle_comment_with_mention(request, payload, comment):
     #generating auth & creating github object
     installation_auth = get_installation_auth(payload)
     #Fetch PR
-    pr_response = fetch_pr(repo_name, issue_number, comment, installation_auth)
+    pr_response = fetch_pr(repo_name, issue_number, installation_auth)
     branch_name = pr_response.json()["head"]["ref"]
     
     #Fetching project details & userid from database
@@ -305,7 +305,7 @@ def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, 
             github.close()
             return paths
         
-def fetch_pr(repo_name, pull_number, comment, installation_auth):
+def fetch_pr(repo_name, pull_number, installation_auth):
         owner = repo_name.split('/')[0]
         repo = repo_name.split('/')[1]
 
