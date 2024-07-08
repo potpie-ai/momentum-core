@@ -2,20 +2,27 @@ import json
 import os
 import time
 from asyncio import create_task
+import logging
+import requests
+
 
 from fastapi import HTTPException, Request, Response
 from github import Github
 from github.Auth import AppAuth
 
+from server.utils.github_helper import GithubService
 from server.models.repo_details import RepoDetails, ProjectStatusEnum
 from server.parse import analyze_directory, get_values
 from server.projects import ProjectManager
 from server.utils.parse_helper import setup_project_directory
 from server.utils.APIRouter import APIRouter
-
+from server.change_detection import get_updated_function_list
+from server.blast_radius_detection import get_paths_from_identifiers
+from server.endpoint_detection import EndpointManager
 
 from server.utils.parse_helper import reparse_cleanup
 from server.utils.user_service import get_user_id_by_username
+from server.plan import Plan
 
 router = APIRouter()
 project_manager = ProjectManager()
@@ -23,8 +30,9 @@ project_manager = ProjectManager()
 
 @router.post("/webhook")
 async def github_app(request: Request):
+    github_event = request.headers.get("X-GitHub-Event")
     payload = await request.body()
-    create_task(parse_repos(payload, request))
+    await handle_request(request, github_event, payload)
     return Response(status_code=200)
 
 
@@ -122,3 +130,190 @@ async def parse_repos(payload, request: Request):
                 project_id, ProjectStatusEnum.READY
             )
             github.close()
+
+async def handle_request(request, github_event, payload):
+    json_payload = json.loads(payload)
+    github_action = json_payload.get("action")
+
+    if github_event == "issue_comment":
+        state = json_payload.get("issue").get("state")
+        comment = json_payload.get("comment").get("body")
+        bot_name = os.environ["GITHUB_BOT_NAME"]
+        if state == "open" and "/plan" in comment.lower() and f"@{bot_name}" in comment.lower():
+            await handle_comment_with_mention(request, json_payload, comment)
+    elif github_event == "pull_request":
+        if github_action == "opened":
+            await handle_open_pr(request, json_payload)
+        elif github_action == "synchronize":
+            await handle_update_pr(request, json_payload)
+        elif github_action == "closed":
+            pass
+        elif github_action == "reopened":
+            pass
+    elif github_event == "create":
+        pass
+    elif github_event == "push":
+        pass
+    else:
+        create_task(parse_repos(payload, request)) #TODO: integrate parse_repos to this function
+
+async def handle_update_pr(request, payload):
+    #Parsing payload to fetch the necessary details
+    repo_name = payload['repository']['full_name']
+    branch_name = payload['pull_request']['head']['ref']
+    base_branch_name = payload['pull_request']['base']['ref']
+    pr_number = payload['pull_request']['number']
+
+    #generating auth & creating github object
+    installation_auth = get_installation_auth(payload)
+
+    #Fetching project details from database
+    project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
+
+    #Get blast radius using project id and base branch name
+    blast_radius = get_blast_radius_details(project_details[2], repo_name, branch_name, installation_auth, base_branch_name)
+
+    #Parsing the blast radius as a markdown table
+    blast_radius = parse_blast_radius_to_markdown(blast_radius)
+
+    #Commenting on PR with blast radius info.
+    if(len(blast_radius)> 0):
+        GithubService.comment_on_pr(repo_name, pr_number, blast_radius, installation_auth)
+
+
+async def handle_open_pr(request, payload):
+    #Parsing payload to fetch the necessary details
+    repo_name = payload['repository']['full_name']
+    branch_name = payload['pull_request']['head']['ref']
+    base_branch_name = payload['pull_request']['base']['ref']
+    owner = payload["pull_request"]["head"]["repo"]["owner"]["login"]
+    pr_number = payload["pull_request"]["number"]
+
+    #creating github object & fetching repo details
+    installation_auth = get_installation_auth(payload)
+    github = Github(auth=installation_auth)
+    repo_details = github.get_repo(repo_name) #TODO: parse this from payload
+    github.close()
+
+    #Fetching user id from database
+    user_id = project_manager.get_first_user_id_from_project_repo_name(repo_name)
+
+    #Create project for the branch & parsing it
+    dir_details, project_id = setup_project_directory(
+        owner,
+        repo_name.split("/")[-1],
+        branch_name,
+        installation_auth,
+        repo_details,
+        user_id,
+        project_id=None
+    )
+    await analyze_directory(dir_details, user_id, project_id)
+    project_manager.update_project_status(
+        project_id, ProjectStatusEnum.READY
+    )
+
+    #Get blast radius using base branch name
+    blast_radius = get_blast_radius_details(project_id, repo_name, branch_name, installation_auth, base_branch_name)
+
+    #Parsing the blast radius as a markdown table
+    blast_radius = parse_blast_radius_to_markdown(blast_radius)
+
+    #Commenting on PR with blast radius info.
+    if(len(blast_radius)> 0):
+        GithubService.comment_on_pr(repo_name, pr_number, blast_radius, installation_auth)
+    
+async def handle_comment_with_mention(request, payload, comment):
+    #Parsing payload to fetch the necessary details
+    repo_name = payload['repository']['full_name']
+    # branch_name = payload['pull_request']['head']['ref']
+    issue_number = payload['issue']['number']
+    comment_list = comment.split(" ")
+    identifier = comment_list[comment_list.index("/plan") + 1]
+
+    #generating auth & creating github object
+    installation_auth = get_installation_auth(payload)
+    #Fetch PR
+    pr_response = fetch_pr(repo_name, issue_number, comment, installation_auth)
+    branch_name = pr_response.json()["head"]["ref"]
+    
+    #Fetching project details & userid from database
+    project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
+    user_id = project_manager.get_first_user_id_from_project_repo_name(repo_name)
+
+    #Fetch test plan for specified identifier
+    test_plan = EndpointManager(
+        project_details[1]
+    ).get_test_plan(identifier, project_details[2])
+    if test_plan is None:
+        try:
+            test_plan = await Plan(
+                user_id
+            ).generate_test_plan_for_endpoint(identifier, project_details)
+        except:
+            test_plan = ""
+    #Commenting on PR with test plan info.
+    if test_plan != "":
+        GithubService.comment_on_pr(repo_name, issue_number, test_plan, installation_auth)
+
+def get_installation_auth(payload):
+    private_key = "-----BEGIN RSA PRIVATE KEY-----\n" + os.environ[
+        'GITHUB_PRIVATE_KEY'] + "\n-----END RSA PRIVATE KEY-----\n"
+    app_id = os.environ["GITHUB_APP_ID"]
+    auth = AppAuth(app_id=app_id, private_key=private_key)
+    return auth.get_installation_auth(payload['installation']['id'])
+
+def parse_blast_radius_to_markdown(blast_radius):
+    markdown_output = "| Filename | Entry Point |\n"
+    markdown_output += "| --- | --- |\n"
+    
+    for filename, endpoints in blast_radius.items():
+        for endpoint in endpoints:
+            entry_point = endpoint["entryPoint"]
+            markdown_output += f"| {filename} | {entry_point} |\n"
+    
+    return "## Blast Radius:\n"+ markdown_output
+
+def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, installation_auth, base_branch
+    ):
+    global patches_dict, repo
+    project_details = project_manager.get_project_from_db_by_id(project_id)
+    github = Github(auth=installation_auth)
+    try:
+        repo = github.get_repo(repo_name)
+        git_diff = repo.compare(base_branch, branch_name)
+        patches_dict = {file.filename: file.patch for file in git_diff.files if file.patch}
+    except Exception as exp:
+        logging.error("Repository not found")
+    finally:
+        if project_details is not None:
+            directory = project_details[1]
+            identifiers = []
+            try:
+                identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
+            except Exception as e:
+                logging.error(f"project_id: {project_id}, error: {str(e)}")
+                if "path not in the working tree" in str(e):
+                    base_branch = "main"
+                    identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
+            if identifiers.count == 0:
+                github.close()
+                return []
+            paths = get_paths_from_identifiers(
+                identifiers, directory, project_details[2]
+            )
+            github.close()
+            return paths
+        
+def fetch_pr(repo_name, pull_number, comment, installation_auth):
+        owner = repo_name.split('/')[0]
+        repo = repo_name.split('/')[1]
+
+        url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}"
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {installation_auth.token}",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+
+        return requests.get(url, headers=headers)
