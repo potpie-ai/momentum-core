@@ -8,7 +8,8 @@ from server.endpoint_detection import EndpointManager
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
 from server.utils.parse_helper import delete_folder
-
+from server.db.session import SessionManager
+from server.schemas import Pydantic
 parser = get_parser("python")
 
 # Initialize SQLite Database and Graph
@@ -19,104 +20,35 @@ def add_codebase_map_path(directory):
     return f"{directory}{codebase_map}"
 
 
-def cleanup(directory: str):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DROP TABLE IF EXISTS pydantic")
-        cursor.execute("DROP TABLE IF EXISTS endpoints")
-        cursor.execute("DROP TABLE IF EXISTS nodes")
-        cursor.execute("DROP TABLE IF EXISTS edges")
-        conn.commit()
-        print("Tables dropped successfully.")
-    except psycopg2.Error as e:
-        print("An error occurred while dropping tables:", e)
-    finally:
-        if conn:
-            conn.close()
-
-
-def _create_pydantic_table(directory: str):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-
-    cursor = conn.cursor()
-    try:
-
-        cursor.execute("""CREATE TABLE IF NOT EXISTS pydantic (
-                            filepath TEXT,
-                            classname TEXT,
-                            definition TEXT,
-                            PRIMARY KEY (filepath, classname),
-                            project_id integer NOT NULL,
-                            CONSTRAINT fk_project FOREIGN KEY (project_id)
-                            REFERENCES projects (id)
-                            ON DELETE CASCADE
-                            )""")
-        conn.commit()
-    except psycopg2.Error as e:
-        print("An error occurred: 6", e)
-    finally:
-        if conn:
-            conn.close()
-
-
-def _create_explanation_table_if_not_exists(directory: str):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS explanation (
-                id SERIAL PRIMARY KEY,
-                identifier TEXT NOT NULL,
-                hash TEXT NOT NULL,
-                explanation TEXT NOT NULL,
-                project_id integer NOT NULL,
-                UNIQUE(identifier, hash, project_id),
-                CONSTRAINT fk_project FOREIGN KEY (project_id)
-                REFERENCES projects (id)
-                ON DELETE CASCADE
-            )
-        """)
-        conn.commit()
-    finally:
-        if conn:
-            conn.close()
-
 
 def put_pydantic_class(filepath, classname, definition, project_id):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-    cursor = conn.cursor()
-    try:
-
-        cursor.execute(
-            "INSERT INTO pydantic (filepath,classname,definition, project_id)"
-            " VALUES (%s,%s,%s,%s)",
-            (filepath, classname, definition, project_id),
-        )
-        conn.commit()
-    except psycopg2.IntegrityError:
-        print(
-            f"Pydantic class with identifier {classname} already exists."
-            " Skipping insert."
-        )
-    finally:
-        if conn:
-            conn.close()
-
+    with SessionManager() as db:
+        try:
+            pydantic_class = Pydantic(
+                filepath=filepath,
+                classname=classname,
+                definition=definition,
+                project_id=project_id
+            )
+            db.add(pydantic_class)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(
+                f"Pydantic class with identifier {classname} already exists."
+                " Skipping insert."
+            )
 
 def get_pydantic_class(classname, project_id):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT filepath, definition FROM pydantic WHERE project_id=%s AND classname = %s", (project_id, classname))
-        conn.commit()
-
-    except psycopg2.Error as e:
-        print("An error occurred: 7", e)
-    definitions = cursor.fetchall()
-
-    if conn:
-        conn.close()
+    with SessionManager() as db:
+        try:
+            definitions = db.query(Pydantic.filepath, Pydantic.definition).filter(
+                Pydantic.project_id == project_id,
+                Pydantic.classname == classname
+            ).all()
+        except Exception as e:
+            print("An error occurred: 7", e)
+            definitions = []
 
     current_dir = os.getcwd()
     edited_definitions = [
@@ -125,21 +57,20 @@ def get_pydantic_class(classname, project_id):
     ]
     return edited_definitions
 
-
 def get_pydantic_classes(classnames, project_id):
-    try:
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        definitions = []
-        placeholders = ', '.join('%s' for classname in classnames)
-        query = f"SELECT filepath, classname, definition FROM pydantic WHERE project_id=%s AND classname IN ({placeholders})"
-        cursor.execute(query, (project_id, *classnames))
-        definitions.extend(cursor.fetchall())
-    except psycopg2.Error as e:
-        print("An error occurred: 8", e)
-    finally:
-        if conn:
-            conn.close()
+    with SessionManager() as db:
+        try:
+            definitions = db.query(
+                Pydantic.filepath,
+                Pydantic.classname,
+                Pydantic.definition
+            ).filter(
+                Pydantic.project_id == project_id,
+                Pydantic.classname.in_(classnames)
+            ).all()
+        except Exception as e:
+            print("An error occurred: 8", e)
+            definitions = []
 
     current_dir = os.getcwd()
     edited_definitions = [
@@ -895,8 +826,7 @@ def extract_function_metadata(node, parameters=[], class_context=None):
 
 # todo: optimise for single run
 async def analyze_directory(directory, user_id, project_id):
-    _create_pydantic_table(directory)
-    _create_explanation_table_if_not_exists(directory)
+
     user_defined_functions = {}
     file_index = {}
     all_class_definitions = []

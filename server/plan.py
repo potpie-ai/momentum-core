@@ -10,7 +10,9 @@ import string
 import subprocess
 from typing import List
 
-import psycopg2
+from server.db.session import SessionManager
+from server.schemas import Project, Endpoint, Explanation, Pydantic
+from server.crud import crud_utils
 from fastapi import (
     HTTPException,  # used for detecting whether generated Python code is valid
 )
@@ -221,49 +223,37 @@ To help integration test the flow above:
         except Exception as e:
             print(e)
 
-    async def _get_explanation_for_function(
-        self, function_identifier, node, project_id
-    ):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        if "project_id" in node:
-            code = GithubService.fetch_method_from_repo(node)
-            code_hash = hashlib.sha256(
-                code.encode("utf-8")
-            ).hexdigest()
-            cursor.execute(
-                "SELECT explanation, project_id FROM explanation WHERE"
-                " identifier=%s AND hash=%s",
-                (function_identifier, code_hash),
-            )
-            explanation_row = cursor.fetchone()
-
-            if explanation_row:
-                explanation = explanation_row[0]
-                if explanation_row[1] != project_id:
-                    cursor.execute(
-                        "INSERT INTO explanation (identifier, hash,"
-                        " explanation, project_id) VALUES (%s, %s, %s, %s)",
-                        (
-                            function_identifier,
-                            code_hash,
-                            explanation,
-                            project_id,
-                        ),
+    async def _get_explanation_for_function(self, function_identifier, node, project_id):
+        with SessionManager() as db:
+            if "project_id" in node:
+                code = GithubService.fetch_method_from_repo(node)
+            code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
+            
+            explanation = crud_utils.get_explanation_by_identifier(db, function_identifier, code_hash)
+            
+            if explanation:
+                if explanation.project_id != project_id:
+                    new_explanation = Explanation(
+                        identifier=function_identifier,
+                        hash=code_hash,
+                        explanation=explanation.explanation,
+                        project_id=project_id,
                     )
+                    crud_utils.create_explanation(db, new_explanation)
             else:
-                code = GithubService.fetch_method_from_repo(
-                    node
+                code = GithubService.fetch_method_from_repo(node)
+                explanation_text = await self.explanation_from_function(code)
+                new_explanation = Explanation(
+                    identifier=function_identifier,
+                    hash=code_hash,
+                    explanation=explanation_text,
+                    project_id=project_id,
                 )
-                explanation = await self.explanation_from_function(code)
-                cursor.execute(
-                    "INSERT INTO explanation (identifier, hash, explanation,"
-                    " project_id) VALUES (%s, %s, %s, %s)",
-                    (function_identifier, code_hash, explanation, project_id),
-                )
-                conn.commit()
-
-        return explanation
+                crud_utils.create_explanation(db, new_explanation)
+                
+                explanation = new_explanation
+        
+            return explanation.explanation if explanation else None
 
     def _get_code_for_node(self, node):
         return GithubService.fetch_method_from_repo(node)

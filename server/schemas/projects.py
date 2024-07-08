@@ -18,7 +18,7 @@ class Project(Base):
     branch_name = Column(Text)
     user_id = Column(String(255), nullable=False)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
-    commit_id = Column(Text)
+    commit_id = Column(String(255))
     updated_at = Column(
         TIMESTAMP,
         default=func.current_timestamp(),
@@ -37,3 +37,4 @@ class Project(Base):
     endpoints = relationship("Endpoint", back_populates="project")
     explanation = relationship("Explanation", back_populates="project")
     pydantic = relationship("Pydantic", back_populates="project")
+    inferences = relationship("Inference", back_populates="project")

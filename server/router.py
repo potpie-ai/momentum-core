@@ -147,6 +147,7 @@ def get_blast_radius_details(
   request: Request, project_id: int, base_branch: Optional[str] = "master", user=Depends(check_auth)
 ):
     global patches_dict, repo
+    patches_dict = {}
     user_id = user["user_id"]
     project_details = project_manager.get_project_repo_details_from_db(project_id, user_id)
     if project_details is not None:
@@ -174,7 +175,6 @@ def get_blast_radius_details(
         except Exception as exp:
             raise HTTPException(status_code=400, detail="Repository not found")
         finally:
-            repo_name_without_org = repo_name.split('/')[-1]
             if project_details is not None:
                 directory = project_details[1]
                 identifiers = []
