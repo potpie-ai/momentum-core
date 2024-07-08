@@ -1018,3 +1018,20 @@ class EndpointManager:
             return self.resolve_called_class_name(
                 name, file_path, file_index, directory
             )
+
+    def get_endpoint_id_from_path(self, endpoint_path, project_id):
+        conn_endpoints = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
+        endpoints_cursor = conn_endpoints.cursor()
+
+        query = """
+        SELECT identifier FROM endpoints WHERE path = %s AND project_id = %s
+        """
+        endpoints_cursor.execute(query, (endpoint_path, project_id))
+        result = endpoints_cursor.fetchone()
+
+        conn_endpoints.close()
+
+        if result:
+            return result[0]
+        else:
+            return None
