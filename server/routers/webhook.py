@@ -33,12 +33,11 @@ async def github_app(request: Request):
     github_event = request.headers.get("X-GitHub-Event")
     payload = await request.body()
     logging.info(f"Received webhook event: {payload}")
-    await handle_request(request, github_event, payload)
+    create_task(handle_request(request, github_event, payload))
     return Response(status_code=200)
 
 
 async def parse_repos(payload, request: Request):
-    start_time = time.time()
     payload = json.loads(payload)
 
     repository_field = {
@@ -141,12 +140,12 @@ async def handle_request(request, github_event, payload):
         comment = json_payload.get("comment").get("body")
         bot_name = os.environ["GITHUB_BOT_NAME"]
         if state == "open" and "/plan" in comment.lower() and f"@{bot_name}" in comment.lower():
-            await handle_comment_with_mention(request, json_payload, comment)
+            await handle_comment_with_mention(json_payload, comment)
     elif github_event == "pull_request":
         if github_action == "opened" :
-            await handle_open_pr(request, json_payload)
+            await handle_open_pr(json_payload)
         elif github_action == "synchronize" or github_action == "reopened":
-            await handle_update_pr(request, json_payload)
+            await handle_update_pr(json_payload)
         elif github_action == "closed":
             pass
         elif github_action == "reopened":
@@ -156,9 +155,9 @@ async def handle_request(request, github_event, payload):
     elif github_event == "push":
         pass
     else:
-        create_task(parse_repos(payload, request)) #TODO: integrate parse_repos to this function
+        create_task(parse_repos(payload, request))
 
-async def handle_update_pr(request, payload):
+async def handle_update_pr(payload):
     #Parsing payload to fetch the necessary details
     repo_name = payload['repository']['full_name']
     branch_name = payload['pull_request']['head']['ref']
@@ -182,7 +181,7 @@ async def handle_update_pr(request, payload):
         GithubService.comment_on_pr(repo_name, pr_number, blast_radius, installation_auth)
 
 
-async def handle_open_pr(request, payload):
+async def handle_open_pr(payload):
     #Parsing payload to fetch the necessary details
     repo_name = payload['repository']['full_name']
     branch_name = payload['pull_request']['head']['ref']
@@ -193,7 +192,7 @@ async def handle_open_pr(request, payload):
     #creating github object & fetching repo details
     installation_auth = get_installation_auth(payload)
     github = Github(auth=installation_auth)
-    repo_details = github.get_repo(repo_name) #TODO: parse this from payload
+    repo_details = github.get_repo(repo_name)
     github.close()
 
     #Fetching user id from database
@@ -222,10 +221,9 @@ async def handle_open_pr(request, payload):
     if(len(blast_radius)> 0):
         GithubService.comment_on_pr(repo_name, pr_number, blast_radius, installation_auth)
     
-async def handle_comment_with_mention(request, payload, comment):
+async def handle_comment_with_mention(payload, comment):
     #Parsing payload to fetch the necessary details
     repo_name = payload['repository']['full_name']
-    # branch_name = payload['pull_request']['head']['ref']
     issue_number = payload['issue']['number']
     comment_list = comment.split(" ")
 
@@ -253,7 +251,7 @@ async def handle_comment_with_mention(request, payload, comment):
             test_plan = await Plan(
                 user_id
             ).generate_test_plan_for_endpoint(identifier, project_details)
-        except:
+        except Exception:
             test_plan = {}
         
     #Commenting on PR with test plan info.
@@ -305,9 +303,9 @@ def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, 
         repo = github.get_repo(repo_name)
         git_diff = repo.compare(base_branch, branch_name)
         patches_dict = {file.filename: file.patch for file in git_diff.files if file.patch}
-    except Exception as exp:
+    except Exception:
         logging.error("Repository not found")
-    finally:
+    else:
         if project_details is not None:
             directory = project_details[1]
             identifiers = []
@@ -319,14 +317,13 @@ def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, 
                     base_branch = "main"
                     identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
             if identifiers.count == 0:
-                github.close()
                 return []
             paths = get_paths_from_identifiers(
                 identifiers, directory, project_details[2]
             )
-            github.close()
             return paths
         else:
-            github.close()
             return []
+    finally:
+        github.close()
         
