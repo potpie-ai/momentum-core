@@ -13,45 +13,7 @@ class TestTasks:
         self.reasoning_client = reasoning_client
         self.directory = directory
 
-    #     def fixture_task(self):
-    #         return Task(
-    #             description="""1. **Identify Unique Fixture Needs**: Begin by identifying the specific needs for fixtures that were not addressed in the initial test data setup and mocking strategies. This includes database connection mocks, FastAPI application instances, and other application states critical for the tests. Clarify the purpose of each fixture, focusing on the unique aspect it brings to the test environment.
-
-    # 2. **Efficient Setup and Teardown with @pytest.fixture**: Utilize the `@pytest.fixture` decorator to define functions for setting up and tearing down the required test environment states. Describe how these fixtures encapsulate the application state, including any database mocks or FastAPI TestClient instances, to provide a clean, isolated context for each test.
-
-    # 3. **Optimize with Scope Parameters**: Implement scope parameters (`function`, `class`, `module`, `package`, `session`) to manage the lifecycle of fixtures efficiently. Discuss the reasoning behind choosing a specific scope for each fixture, aiming to balance resource utilization against test isolation and execution time. This step ensures that fixtures are instantiated only when necessary, reducing setup and teardown overhead.
-
-    # 4. **Parametrized Fixtures for Enhanced Test Coverage**: Explore the implementation of parametrized fixtures to allow tests to run under various configurations or with different inputs. Explain the selection of parameters for each fixture, focusing on how they expand test coverage and robustness by simulating a wide range of scenarios and application states.
-
-    # 5. **Database Mocks Setup**: Detail the process for setting up database mocks, ensuring tests interact with a controlled, predictable database environment. This includes mocking database connections and operations to test database interaction without affecting the actual database, essential for testing CRUD operations accurately.
-
-    # 6. **FastAPI Application Mocks**: Outline the creation of FastAPI application mocks or instances using the FastAPI TestClient. This involves configuring the TestClient to simulate application behavior and responses, allowing for the testing of endpoint integrations and request handling in isolation from external services.
-
-    # 7. **Integration with Test Suite**: Discuss the integration of these newly developed fixtures into the test suite, ensuring they are correctly utilized across relevant tests. This includes instructions on invoking fixtures in test functions and managing dependencies between fixtures to maintain test clarity and efficiency.
-
-    # 8. **Review and Refinement**: Finally, encourage periodic review and refinement of fixture strategies to adapt to changes in application architecture and test requirements. This ongoing process ensures that fixtures remain effective and aligned with testing goals, supporting a robust, flexible test environment.
-    # """,
-    #             # description='Plan and write pytest fixtures for FastAPI tests based on test plan and backstory and endpoint code to be tested. Use the get code tool in order to get the code for the endpoint to be tested. ',
-    #             expected_output="Properly formatted pytest fixture code for FastAPI tests",
-    #             agent=TestAgents().fixtures_agent(),
-    #             tools=[],
-    #         )
-
-    #     def get_input() -> str:
-    #         print(
-    #             "Insert your text. Enter 'q' or press Ctrl-D (or Ctrl-Z on Windows) to end."
-    #         )
-    #         contents = []
-    #         while True:
-    #             try:
-    #                 line = input()
-    #             except EOFError:
-    #                 break
-    #             if line == "q":
-    #                 break
-    #             contents.append(line)
-    #         return "\n".join(contents)
-
+    
     def get_pydantic_definition_task(self, identifier , project_id):
             return Task(
                 description=f"""Endpoint identifier: {identifier} \n  Project id: {project_id} \n
@@ -89,7 +51,7 @@ class TestTasks:
         )
         
     def test_task(
-        self, identifier, test_plan,  endpoint_path, code_analysis_task, pydantic_definition_task, project_id
+        self, identifier, test_plan,  endpoint_path, code_analysis_task, pydantic_definition_task, project_id, preferences
     ):
         return Task(
             description= f"""Test Plan {test_plan} for identifier {identifier} and project id {project_id}
@@ -102,7 +64,7 @@ class TestTasks:
     * Analyze the provided function code and identify the key components, such as dependencies, database connections, and external API calls, that need to be mocked or set up for testing.
     * Review the provided test plan and understand the different test scenarios that need to be covered. Consider edge cases, error handling, and potential variations in input data.
     * Use the provided context and pydantic classes from the output of the code analysis task to create the necessary pydantic objects for the test data and mock test data setup. This ensures that the tests align with the expected data structures used in the function.
-    * Pay attention to the preferences provided: ({None}). If a list of entities (functions, classes, databases, etc.) is specified to be mocked, strictly follow these preferences. If the preferences are empty, use your judgment to determine which components should be mocked, such as the database and any external API calls.
+    * Pay attention to the preferences provided: ({preferences}). If a list of entities (functions, classes, databases, etc.) is specified to be mocked, strictly follow these preferences. If the preferences are empty, use your judgment to determine which components should be mocked, such as the database and any external API calls.
     * Utilize FastAPI testing features like TestClient and dependency overrides to set up the test environment. Create fixtures to minimize code duplication and improve test maintainability.
     * ALWAYS create a new FastAPI app in the test client and INCLUDE THE RELEVANT ROUTERS IN THE APP in it for testing. DO NOT ASSUME where the main FastAPI app is defined. DO NOT REWRITE ROUTERS in the test file.
     * When setting up mocks, use the pytest-mock library. Check if the output structure is defined in the code and use that to create the expected output response data for the test cases. If not defined, infer the expected output based on the test plan outcomes and the provided code under test.

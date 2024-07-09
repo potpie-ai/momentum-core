@@ -354,10 +354,10 @@ async def get_test_preferences(
         project_id, user_id
     )
     if project_details is not None:
-        test_plan = EndpointManager(
+        preference = EndpointManager(
              project_details[1]
         ).get_preferences(identifier, project_details[2])
-        return test_plan
+        return preference
     else:
         raise HTTPException(
             status_code=400, detail="Project Details not found."
@@ -388,7 +388,7 @@ async def generate_test(
             if test_plan is None:
                 test_plan = await Plan(
                     user["user_id"]
-                ).generate_test_plan_for_endpoint(identifier, project_details)
+                ).generate_test_plan_for_endpoint(identifier, project_details, preferences)
             no_of_test_generated = (len(test_plan["happy_path"] if "happy_path" in test_plan else 0)
                                     + len(test_plan["edge_case"] if "edge_case" in test_plan else 0))
             return await GenerateTest(
@@ -397,8 +397,9 @@ async def generate_test(
                 str(test_plan),
                 user["user_id"],
                 project_dir,
-                project_id
-            ).write_tests(identifier, preferences, no_of_test_generated, project_details, user_id)
+                project_id,
+                preferences
+            ).write_tests(identifier, no_of_test_generated, project_details, user_id)
         else:
             raise HTTPException(
                 status_code=400, detail="Project Details not found."

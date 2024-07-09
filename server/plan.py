@@ -82,7 +82,9 @@ class Plan:
 
     async def _plan(
         self,
-        explanation: str,  # explanation of the function, as a string
+        explanation: str,
+        to_be_mocked: str,
+        is_db_mocked: bool,
         test_package: str = "pytest",  # integration testing package; use the name as it appears in the import statement
         approx_min_cases_to_cover: int = 6,  # minimum number of test case categories to cover (approximate)
         print_text: bool = True,  # optionally prints text; helpful for understanding the function & debugging
@@ -94,22 +96,25 @@ class Plan:
             - Test the function's behavior for a wide range of possible inputs
 - Test edge cases that the author may not have foreseen
 - Take advantage of the features of `{test_package}` to make the tests easy to write and maintain
-- Be easy to read and understand, with clean code and descriptive names
+- Be easy to read and understand, with clean descriptive names
 - Be deterministic, so that the tests always pass or fail in the same way
 Happy Path Scenarios:
 - Test cases that cover the expected normal operation of the function, where the inputs are valid and the function produces the expected output without any errors.
 Edge Case Scenarios:
 - Test cases that explore the boundaries of the function's input domain, such as:
-  - Boundary values for input parameters
-  - Unexpected or invalid input types
-  - Error conditions and exceptions
-  - Interactions with external dependencies (e.g., databases, APIs)
+  * Boundary values for input parameters
+  * Unexpected or invalid input types
+  * Error conditions and exceptions
+  * Interactions with external dependencies (e.g., databases, APIs)
 - These scenarios test the function's robustness and error handling capabilities.
 To help integration test the flow above:
-1. Analyze the provided code and explaination.
-2. List diverse happy path and edge case scenarios that the function should handle. 
-3. Include exactly 3 scenario statements of happpy paths and 3 scenarios of edge cases. 
-4. Format your output in JSON format as such, each scenario is only a string statement:
+1. Analyze the provided code and explanation.
+2. Consider the following preferences and their impact while generating the test plan:
+  * Classes to be mocked: {to_be_mocked}
+  * Is database mocked: {is_db_mocked}
+3. List diverse happy path and edge case scenarios that the function should handle. 
+4. Include exactly 3 scenario statements of happy paths and 3 scenarios of edge cases. 
+5. Format your output in JSON format as such, each scenario is only a string statement:
 {{
 \"happy_path\": [
     \"happy_scenario1\",
@@ -380,8 +385,15 @@ To help integration test the flow above:
         return code
 
     async def generate_test_plan_for_endpoint(
-        self, identifier: str, project_details: list
-    ):
+        self, identifier: str, project_details: list, preferences: dict = None 
+    ):  
+        if preferences is None:
+            preferences = json.loads(EndpointManager(project_details[1]).get_preferences(identifier, project_details[2]))
+        
+        if preferences:
+            to_be_mocked = preferences["entities_to_mock"]
+            is_db_mocked = preferences["is_db_mocked"]
+        
         flow = get_flow(identifier, project_details[2])
         graph = get_graphical_flow_structure(
             identifier, project_details[1], project_details[2]
@@ -408,7 +420,7 @@ To help integration test the flow above:
             f" format:\n {graph}"
             + context
         )
-        test_plan = await self._plan(context)
+        test_plan = await self._plan(context, to_be_mocked, is_db_mocked)
         test_plan = self._extract_json(test_plan.content)
         plan_obj = TestPlan(**test_plan)
         (
