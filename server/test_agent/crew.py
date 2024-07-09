@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import re
@@ -45,12 +46,12 @@ class GenerateTest:
 
   async def write_tests(self, identifier: str,
                         no_of_test_generated: int, project_details: list, user_id: str):
-    print(identifier)
+    logging.info(f"project_id: {project_details[2]}, write_tests - identifier: {identifier}")
     project_id = project_details[2]
     repo_name = project_details[3]
     branch_name = project_details[4]
     result = await asyncio.to_thread(self.test_crew.kickoff, None)
-    print(result)
+    logging.info(f"project_id: {project_id}, write_tests - result: {result}")
     self.user_detail_manager.send_user_test_details(
         project_id=project_id,
         user_id=user_id,

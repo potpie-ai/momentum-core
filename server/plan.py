@@ -2,6 +2,7 @@
 import ast
 import hashlib
 import json
+import logging
 import os
 import random
 import re
@@ -53,7 +54,7 @@ class Plan:
         # model used to generate code in step 3
         temperature: float = 0.4,  # temperature = 0 can sometimes get stuck in repetitive loops, so we use 0.4
     ) -> str:
-        print(function_to_test)
+        logging.info(function_to_test)
         """Returns a integration test for a given Python function, using a 3-step GPT prompt."""
 
         # Step 1: Generate an explanation of the function
@@ -135,7 +136,7 @@ To help integration test the flow above:
             plan_user_message,
         ]
         if print_text:
-            print("Plan messages:")
+            logging.info("Plan messages:")
             print_messages(plan_messages)
 
         plan = await llm_call(self.plan_client, plan_messages)
@@ -144,7 +145,7 @@ To help integration test the flow above:
         # Step 2b: If the plan is short, ask GPT to elaborate further
         # this counts top-level bullets (e.g., categories), but not sub-bullets (e.g., test cases)
         plan_content = self._extract_json(plan.content)
-        print(plan_content)
+        logging.info(plan_content)
         num_scenarios = len(plan_content["happy_path"]) + len(
             plan_content["edge_case"]
         )
@@ -182,49 +183,6 @@ To help integration test the flow above:
             # Write the string to the file
             file.write(result)
         return filename
-
-    async def run_tests(self, identifier, content):
-        directory = os.getcwd()
-        try:
-
-            test_filepath = await self.create_temp_test_file(
-                identifier, content
-            )
-            test_filename = test_filepath.split("/")[-1]
-
-            if not (
-                test_filename.endswith("_test.py")
-                or test_filename.startswith("test")
-            ):
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "Invalid test file name. File should start or end with"
-                        " 'test.py'."
-                    ),
-                )
-
-            # Construct the pytest command
-            # activate_venv_command = f"source {directory}/.venv/bin/activate"
-            pytest_command = (
-                "pytest --verbose --json-report --json-report-file=-"
-                f" {shlex.quote(test_filepath)}"
-            )
-            full_command = pytest_command
-            # result = subprocess.run(activate_venv_command, shell=True, capture_output=True, text=True, executable='/bin/bash')
-
-            # Execute the pytest command within the virtual environment
-            result = subprocess.run(
-                full_command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                executable="/bin/bash",
-            )
-            output = result.stdout if result.stdout else result.stderr
-            return output
-        except Exception as e:
-            print(e)
 
     async def _get_explanation_for_function(
         self, function_identifier, node, project_id
@@ -280,14 +238,14 @@ To help integration test the flow above:
         )
         try:
             json_data = json.loads(text)
-            print("JSON data extracted successfully")
+            logging.info("JSON data extracted successfully")
         except:
             match = re.search(pattern, text)
             if match:
                 try:
                     json_data = json.loads(match.group())
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON: {e}")
+                    logging.error(f"Error decoding JSON: {e}")
         return json_data
 
     async def generate_tests(
@@ -363,12 +321,11 @@ To help integration test the flow above:
         code = execution.content.split("```python")[1].split("```")[0].strip()
         try:
             ast.parse(code)
-            # output = await run_tests(code)
 
         except SyntaxError as e:
-            print(f"Syntax error in generated code: {e}")
+            logging.error(f"Syntax error in generated code: {e}")
             if reruns_if_fail > 0:
-                print("Rerunning...")
+                logging.info("Rerunning...")
                 return await self.generate_tests(
                     plan=plan,
                     function_to_test=function_to_test,
