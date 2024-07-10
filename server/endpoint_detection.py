@@ -544,21 +544,6 @@ class EndpointManager:
         finally:
             conn.close()
 
-    def delete_pydantic_entries(self, project_id, user_id):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "DELETE FROM pydantic WHERE project_id = %s AND project_id IN (SELECT id FROM projects WHERE user_id = %s)",
-                (project_id, user_id))
-            conn.commit()
-            logging.info(f"project_id: ,{project_id}, Pydantic entries with project_id {project_id} and user_id {user_id} deleted successfully.")
-        except psycopg2.Error as e:
-            logging.error(f"project_id: ,{project_id}, An error occurred while deleting pydantic entries: , {e}")
-        finally:
-            conn.close()
-
-
     def update_test_plan(self, identifier, plan, project_id):
         conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
         cursor = conn.cursor()
@@ -570,7 +555,7 @@ class EndpointManager:
             params = (plan, identifier, project_id)
             cursor.execute(query, params)
         except psycopg2.IntegrityError as e:
-            logging.error(f"project_id: {project_id}, error -> {e.sqlite_errorname}")
+            logging.error(f"project_id: {project_id}, error -> {e}")
 
         conn.commit()
         conn.close()
@@ -614,7 +599,7 @@ class EndpointManager:
             else:
                 return None  # No test plan found for the given identifier
         except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, SQLite error: {e}")
+            logging.error(f"project_id: {project_id}, Postgres error: {e}")
             return None
         finally:
             conn.close()
@@ -642,7 +627,7 @@ class EndpointManager:
             else:
                 return None  # No test plan found for the given identifier
         except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, SQLite error: {e}")
+            logging.error(f"project_id: {project_id}, Postgres error: {e}")
             return None
         finally:
             conn.close()
@@ -675,7 +660,7 @@ class EndpointManager:
                     None  # No test plan found for the given identifier
                 )
         except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, SQLite error: {e}")
+            logging.error(f"project_id: {project_id}, Postgres error: {e}")
             return None, None
         finally:
             conn.close()

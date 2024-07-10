@@ -9,6 +9,7 @@ from github.Auth import AppAuth
 
 from server.models.repo_details import ProjectStatusEnum
 from server.projects import ProjectManager
+from server.utils.user_service import get_user_id_by_username
 
 project_manager = ProjectManager()
 logger = logging.getLogger(__name__)
@@ -76,3 +77,16 @@ class GithubService:
         finally:
             github.close()
             return method_content
+
+    @staticmethod
+    def get_app_auth_details(payload):
+        private_key = "-----BEGIN RSA PRIVATE KEY-----\n" + os.environ[
+            'GITHUB_PRIVATE_KEY'] + "\n-----END RSA PRIVATE KEY-----\n"
+        app_id = os.environ["GITHUB_APP_ID"]
+        auth = AppAuth(app_id=app_id, private_key=private_key)
+        installation_auth = auth.get_installation_auth(payload['installation']['id'])
+        github = Github(auth=installation_auth)
+        user = github.get_user_by_id(payload['sender']['id'])
+        username = user.login
+        user_details = get_user_id_by_username(username)
+        return auth, installation_auth, user_details, github
