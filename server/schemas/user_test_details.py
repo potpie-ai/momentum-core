@@ -1,16 +1,9 @@
 import datetime
-import os
+from mongoengine import Document, StringField, IntField, DateTimeField
+from server.utils.mongo_helper import get_mongo_connection
 
-import certifi
-from mongoengine import Document, StringField, IntField, DateTimeField, connect
-
-connect(
-    'test',
-    host=os.getenv("MONGO_URI", "mongodb://localhost:27017"),
-    tlsCAFile= certifi.where()
-)
-
-
+# Get the MongoDB connection
+mongo_conn = get_mongo_connection()
 class UserTestDetail(Document):
     project_id = IntField(required=True)
     user_id = StringField(required=True)

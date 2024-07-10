@@ -1,15 +1,7 @@
-import datetime
-import os
+from mongoengine import StringField, Document, IntField, DateTimeField, BooleanField
+from server.utils.mongo_helper import get_mongo_connection
 
-import certifi
-from mongoengine import StringField, Document, IntField, DateTimeField, connect, BooleanField
-
-connect(
-    'test',
-    host=os.getenv("MONGO_URI", "mongodb://localhost:27017"),
-    tlsCAFile=certifi.where()
-)
-
+mongo_conn = get_mongo_connection()
 
 class UserSubscriptionDetail(Document):
     userId = StringField(required=True)

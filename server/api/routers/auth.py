@@ -1,18 +1,23 @@
 import json
+
 from datetime import datetime
 
-from fastapi import Request
+from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
 
 from server.handler.auth_handler import auth_handler
 from server.handler.user_handler import user_handler
-from server.models.login_request import LoginRequest
-from server.models.user import CreateUser
+
 from server.utils.APIRouter import APIRouter
 from server.utils.user_service import add_users_to_additional_data
+from server.utils.test_detail_handler import UserTestDetailsManager
+
+from server.auth import check_auth
+
+from server.models.login_request import LoginRequest
+from server.models.user import CreateUser
 
 auth_router = APIRouter()
-
 
 @auth_router.post("/login")
 async def login(login_request: LoginRequest):
@@ -26,7 +31,6 @@ async def login(login_request: LoginRequest):
         return JSONResponse(
             content={"error": f"ERROR: {str(e)}"}, status_code=400
         )
-
 
 @auth_router.post("/signup")
 async def signup(request: Request):
@@ -56,3 +60,7 @@ async def signup(request: Request):
         if error:
             return Response(content=message, status_code=400)
         return Response(content=json.dumps({"uid": uid}), status_code=201)
+    
+@auth_router.get("/usage")
+async def usage(user=Depends(check_auth)):
+    return {"tests_generated": UserTestDetailsManager().get_test_count_last_month(user["user_id"])}

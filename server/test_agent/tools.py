@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List
 
 from langchain.tools import tool
@@ -10,7 +11,7 @@ from server.parse import (
     get_pydantic_classes,
 )
 from server.utils.graph_db_helper import Neo4jGraph
-
+import requests
 neo4j_graph = Neo4jGraph()
 
 class CodeTools:
@@ -87,6 +88,13 @@ class CodeTools:
         Returns:
         - The result of querying the knowledge graph with the provided question.
             """
-      from server.knowledge_graph.knowledge_graph import KnowledgeGraph
-
-      return KnowledgeGraph(project_id).query(query, project_id)
+      data = {
+             "project_id": project_id,
+             "query": query
+       }
+      headers = {
+             "Content-Type": "application/json"
+      }
+      kg_query_url = os.getenv("KNOWLEDGE_GRAPH_URL")
+      response = requests.post(kg_query_url, json=data, headers=headers)      
+      return response.json()
