@@ -88,7 +88,7 @@ async def parse_repos(payload, request: Request):
                             dir_details, project_id = setup_project_directory(owner, repo_name,
                                                                               branch_name, auth, repo_details, user_id,
                                                                               project_id)
-                            analyze_directory(dir_details, user_id, project_id)
+                            await analyze_directory(dir_details, user_id, project_id)
                 except Exception as e:
                     project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
                     raise HTTPException(status_code=500, detail=f"{str(e)}")
