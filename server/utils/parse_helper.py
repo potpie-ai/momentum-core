@@ -106,7 +106,6 @@ def reparse_cleanup(project_details, user_id):
     directory = project_details[1]
     project_id = project_details[2]
     EndpointManager(directory).delete_endpoints(project_id, user_id)
-    EndpointManager(directory).delete_pydantic_entries(project_id, user_id)
     neo4j_graph.delete_nodes_by_project_id(project_id)
     delete_folder(directory)
 
