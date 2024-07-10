@@ -1,0 +1,3 @@
+[submodule "knowledge_graph"]
+	path = knowledge_graph
+	url = https://github.com/getmomentum/knowledge_graph
