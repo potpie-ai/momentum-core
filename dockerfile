@@ -10,9 +10,6 @@ COPY requirements.txt .
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the .env file into the container
-COPY .env .env
-
 # Copy the rest of the application code into the container
 COPY . .
 

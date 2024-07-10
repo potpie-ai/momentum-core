@@ -68,9 +68,11 @@ def download_and_extract_tarball(owner, repo, branch, target_dir, auth, repo_det
         shutil.move(temp_extract_dir, final_dir)
     except shutil.Error as e:
         logging.error(f"Error moving extracted directory: {e}")
-        return e
+        # return e
+    finally:
+        return final_dir
 
-    return final_dir
+   
 
 
 def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, project_id=None):
@@ -115,8 +117,10 @@ def delete_folder(folder_path):
         if os.path.exists(folder_path) and os.path.isdir(folder_path):
             shutil.rmtree(folder_path, ignore_errors=True)
             logging.info(f"deleted {folder_path}")
-        else:
-            raise HTTPException(status_code=404, detail="Project Folder not found")
+        # else:
+            # raise HTTPException(status_code=404, detail="Project Folder not found")
     except Exception as e:
         logging.exception(f"Error in deleting folder: {str(e)}")
-        raise HTTPException(status_code=400, detail="Error deleting Project Folder.")
+        # raise HTTPException(status_code=400, detail="Error deleting Project Folder.")
+    finally:
+        return

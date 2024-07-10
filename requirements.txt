@@ -38,4 +38,5 @@ flask==2.*
 asyncio
 redis
 eventlet
+google-cloud-logging
 certifi
