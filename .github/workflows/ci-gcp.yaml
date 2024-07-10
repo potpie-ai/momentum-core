@@ -1,0 +1,73 @@
+# File path: .github/workflows/build-and-push.yml
+
+name: Build and Push to Google Artifact Registry
+
+on:
+  push:
+    branches:
+      - integrating-celery-and-kg
+
+env:
+  PROJECT_ID: ${{ secrets.GCLOUD_PROJECT_ID }}
+  IMAGE: momentum-core-staging # Image name
+  GAR_ZONE: us-central1 # Artifact Registry zone
+  GAR_REPO: momentum-core # Artifact Registry repository
+
+jobs:
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive  # Ensure submodules are checked out
+
+    - name: Update submodules
+      run: git submodule update --init --recursive
+
+    # List files to debug
+    - name: List files
+      run: ls -R
+
+    # Setup gcloud CLI
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v1'
+      with:
+        credentials_json: '${{ secrets.GKE_SA_KEY }}'
+
+    # Install gke-gcloud-auth-plugin
+    - name: Install gke-gcloud-auth-plugin
+      run: |-
+        sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates gnupg
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+        sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+
+    # Configure Docker to use the gcloud command-line tool as a credential
+    # helper for authentication
+    - name: Docker configuration
+      run: |-
+        gcloud auth configure-docker $GAR_ZONE-docker.pkg.dev
+
+    # Build the Docker image
+    - name: Build
+      run: |-
+        SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+        IMAGE_TAG="$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/$IMAGE:$SHORT_SHA"
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+        docker build \
+          --tag "$IMAGE_TAG" \
+          --build-arg GITHUB_SHA="$GITHUB_SHA" \
+          --build-arg GITHUB_REF="$GITHUB_REF" \
+          -f knowledge_graph/Dockerfile \
+          knowledge_graph
+
+    # Push the Docker image to Google Artifact Registry
+    - name: Publish
+      run: |-
+        docker push "$IMAGE_TAG"

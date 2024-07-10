@@ -1,6 +1,8 @@
 import logging
 import os
 
+from server.key_management.secret_manager import get_secret
+from server.utils.firestore_helper import FirestoreHelper
 from langchain_openai.chat_models import ChatOpenAI
 from portkey_ai import createHeaders, PORTKEY_GATEWAY_URL
 import asyncio 
@@ -13,9 +15,10 @@ color_prefix_by_role = {
     "assistant": "\033[92m",  # green
 }
 
+
 def get_llm_client(user_id, model_name):
-    provider_key = os.getenv("OPENAI_API_KEY")
-    return create_client("openai", provider_key, model_name, user_id)
+    provider_key = get_provider_key(user_id)
+    return create_client(provider_key["provider"], provider_key["key"], model_name, user_id)
 
 def create_client(provider, key, model_name, user_id):
     if provider == "openai":
@@ -26,6 +29,18 @@ def create_client(provider, key, model_name, user_id):
 
         return ChatOpenAI(api_key=PROVIDER_API_KEY, model=model_name, base_url=PORTKEY_GATEWAY_URL, default_headers=portkey_headers)
         
+
+def get_provider_key(customer_id):
+    firestore_helper = FirestoreHelper()
+    preference = firestore_helper.get(customer_id, "preferences").get()
+    if preference.exists and preference.get("provider") == "openai":
+        return {
+            "provider": "openai",
+            "key": get_secret("openai", customer_id)["api_key"],
+        }
+    else:
+        return {"provider": "openai", "key": os.environ.get("OPENAI_API_KEY")}
+
 
 async def llm_call(client, messages, print_text=True, temperature=0.4):
     response = await asyncio.to_thread(client, messages=messages, temperature=temperature)
