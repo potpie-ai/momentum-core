@@ -69,8 +69,7 @@ def download_and_extract_tarball(owner, repo, branch, target_dir, auth, repo_det
     except shutil.Error as e:
         logging.error(f"Error moving extracted directory: {e}")
         # return e
-    finally:
-        return final_dir
+    return final_dir
 
    
 
@@ -122,5 +121,3 @@ def delete_folder(folder_path):
     except Exception as e:
         logging.exception(f"Error in deleting folder: {str(e)}")
         # raise HTTPException(status_code=400, detail="Error deleting Project Folder.")
-    finally:
-        return

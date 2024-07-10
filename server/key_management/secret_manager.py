@@ -97,7 +97,7 @@ def get_secret(provider: Literal["openai"], customer_id: str):
         response = client.access_secret_version(request={"name": name})
         api_key = response.payload.data.decode("UTF-8")
         return {"api_key": api_key}
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=404, detail="Secret not found")
 
 
@@ -128,5 +128,5 @@ def delete_secret(provider: Literal["openai"], user=Depends(check_auth)):
         client.delete_secret(request={"name": name})
         FirestoreHelper().delete("preferences", customer_id)
         return {"message": "Secret deleted successfully"}
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=404, detail="Secret not found")
