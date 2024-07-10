@@ -72,7 +72,7 @@ async def parse_directory(
     user_id = user["user_id"]
 
     message = ""
-    repo_name, branch_name, project_details = get_values(
+    repo_name, branch_name, is_deleted, project_details = get_values(
         repo_branch, project_manager, user_id
     )
 
@@ -88,6 +88,10 @@ async def parse_directory(
         else:
             dir_details = project_details[1]
             project_id = project_details[2]
+            if is_deleted:
+                message = project_manager.restore_project(project_id, user_id)
+            else:
+                message = "The project has been re-parsed successfully"
             if GithubService.check_is_commit_added(repo, project_details, branch_name):
                 reparse_cleanup(project_details, user_id)
                 dir_details, project_id = setup_project_directory(owner, repo_name,
@@ -95,7 +99,6 @@ async def parse_directory(
                                                                   project_id)
                 await analyze_directory(dir_details, user_id, project_id)
                 new_project = False
-                message = "The project has been re-parsed successfully"
             else:
                 return {"message": "No new commits have been added to the branch "
                                    "since the last parsing. The database is up to date.",

@@ -6,6 +6,7 @@ import requests
 from fastapi import Depends, HTTPException
 from github import Github
 from github.Auth import AppAuth
+from starlette.responses import JSONResponse
 
 from server.auth import check_auth
 from server.projects import ProjectManager
@@ -86,3 +87,17 @@ def get_branch_list(
         return branch_list
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"{str(e)}")
+
+
+@api_router_project.delete("/projects")
+def delete_project(project_id: int, user=Depends(check_auth)):
+    user_id = user["user_id"]
+    try:
+        project_manager.delete_project(project_id, user_id)
+        return JSONResponse(status_code=200,
+                            content={
+                                "message": "Project deleted successfully.",
+                                "id": project_id
+                            })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{str(e)}")
