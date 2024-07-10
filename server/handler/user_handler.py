@@ -1,15 +1,14 @@
 from datetime import datetime
 
-from loguru import logger
+import logging
 
 from server.db.session import SessionManager
 from server.models.user import CreateUser
 from server.schemas.users import User
 
-
 class UserHandler:
     def update_last_login(self, uid: str):
-        logger.info(f"Updating last login time for user with UID: {uid}")
+        logging.info(f"Updating last login time for user with UID: {uid}")
         message: str = ""
         error: bool = False
         try:
@@ -25,14 +24,14 @@ class UserHandler:
                     error = True
                     message = "User not found"
         except Exception as e:
-            logger.error(f"Error updating last login time: {e}")
+            logging.error(f"Error updating last login time: {e}")
             message = "Error updating last login time"
             error = True
 
         return message, error
 
     def create_user(self, user_details: CreateUser):
-        logger.info(
+        logging.info(
             f"Creating user with email: {user_details.email} | display_name:"
             f" {user_details.display_name}"
         )
@@ -58,7 +57,7 @@ class UserHandler:
                 uid = new_user.uid
 
         except Exception as e:
-            logger.error(f"Error creating user: {e}")
+            logging.error(f"Error creating user: {e}")
             message = "error creating user"
             error = True
             uid = ""
@@ -71,7 +70,7 @@ class UserHandler:
                 user = db.query(User).filter(User.uid == uid).first()
                 return user
         except Exception as e:
-            logger.error(f"Error fetching user: {e}")
+            logging.error(f"Error fetching user: {e}")
             return None
 
 user_handler = UserHandler()

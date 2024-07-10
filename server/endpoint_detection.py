@@ -8,11 +8,12 @@ from server.utils.config import neo4j_config
 import os
 import logging
 
-import psycopg2
+import psycopg2 
 from tree_sitter_languages import get_language, get_parser
 
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
+from server.celery_worker import celery_worker
 
 PY_LANGUAGE = get_language("python")
 
@@ -483,9 +484,14 @@ class EndpointManager:
                 )
 
         conn.close()
-        from server.knowledge_graph.flow import understand_flows
-
-        asyncio.create_task(understand_flows(project_id, self.directory, user_id))
+        celery_worker.send_task(
+                 'knowledgegraph.task.infer_flows',
+                 kwargs={
+                     'project_id': project_id,
+                     'directory': self.directory,
+                     'user_id': user_id
+                 }
+         )
 
     def get_qualified_endpoint_name(self, path, prefix):
         if prefix == None:
