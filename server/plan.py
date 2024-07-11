@@ -186,49 +186,7 @@ To help integration test the flow above:
             file.write(result)
         return filename
 
-    async def run_tests(self, identifier, content):
-        directory = os.getcwd()
-        try:
-
-            test_filepath = await self.create_temp_test_file(
-                identifier, content
-            )
-            test_filename = test_filepath.split("/")[-1]
-
-            if not (
-                test_filename.endswith("_test.py")
-                or test_filename.startswith("test")
-            ):
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "Invalid test file name. File should start or end with"
-                        " 'test.py'."
-                    ),
-                )
-
-            # Construct the pytest command
-            # activate_venv_command = f"source {directory}/.venv/bin/activate"
-            pytest_command = (
-                "pytest --verbose --json-report --json-report-file=-"
-                f" {shlex.quote(test_filepath)}"
-            )
-            full_command = pytest_command
-            # result = subprocess.run(activate_venv_command, shell=True, capture_output=True, text=True, executable='/bin/bash')
-
-            # Execute the pytest command within the virtual environment
-            result = subprocess.run(
-                full_command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                executable="/bin/bash",
-            )
-            output = result.stdout if result.stdout else result.stderr
-            return output
-        except Exception as e:
-            logging.error(e)
-
+ 
     async def _get_explanation_for_function(self, function_identifier, node, project_id):
         with SessionManager() as db:
             if "project_id" in node:
