@@ -72,7 +72,7 @@ async def parse_directory(
     user_id = user["user_id"]
 
     message = ""
-    repo_name, branch_name, project_details = get_values(
+    repo_name, branch_name, is_deleted, project_details = get_values(
         repo_branch, project_manager, user_id
     )
 
@@ -88,6 +88,10 @@ async def parse_directory(
         else:
             dir_details = project_details[1]
             project_id = project_details[2]
+            if is_deleted:
+                message = project_manager.restore_project(project_id, user_id)
+            else:
+                message = "The project has been re-parsed successfully"
             if GithubService.check_is_commit_added(repo, project_details, branch_name):
                 reparse_cleanup(project_details, user_id)
                 dir_details, project_id = setup_project_directory(owner, repo_name,
@@ -95,7 +99,6 @@ async def parse_directory(
                                                                   project_id)
                 await analyze_directory(dir_details, user_id, project_id)
                 new_project = False
-                message = "The project has been re-parsed successfully"
             else:
                 return {"message": "No new commits have been added to the branch "
                                    "since the last parsing. The database is up to date.",
@@ -352,10 +355,10 @@ async def get_test_preferences(
         project_id, user_id
     )
     if project_details is not None:
-        test_plan = EndpointManager(
+        preference = EndpointManager(
              project_details[1]
         ).get_preferences(identifier, project_details[2])
-        return test_plan
+        return preference
     else:
         raise HTTPException(
             status_code=400, detail="Project Details not found."
@@ -386,7 +389,7 @@ async def generate_test(
             if test_plan is None:
                 test_plan = await Plan(
                     user["user_id"]
-                ).generate_test_plan_for_endpoint(identifier, project_details)
+                ).generate_test_plan_for_endpoint(identifier, project_details, preferences)
             no_of_test_generated = (len(test_plan["happy_path"] if "happy_path" in test_plan else 0)
                                     + len(test_plan["edge_case"] if "edge_case" in test_plan else 0))
             return await GenerateTest(
@@ -395,8 +398,9 @@ async def generate_test(
                 str(test_plan),
                 user["user_id"],
                 project_dir,
-                project_id
-            ).write_tests(identifier, preferences, no_of_test_generated, project_details, user_id)
+                project_id,
+                preferences
+            ).write_tests(identifier, no_of_test_generated, project_details, user_id)
         else:
             raise HTTPException(
                 status_code=400, detail="Project Details not found."

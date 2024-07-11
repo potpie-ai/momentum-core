@@ -13,6 +13,7 @@ class TestTasks:
         self.reasoning_client = reasoning_client
         self.directory = directory
 
+    
     def get_pydantic_definition_task(self, identifier , project_id):
             return Task(
                 description=f"""Endpoint identifier: {identifier} \n  Project id: {project_id} \n
@@ -50,7 +51,7 @@ class TestTasks:
         )
         
     def test_task(
-        self, identifier, test_plan,  endpoint_path, code_analysis_task, pydantic_definition_task, project_id
+        self, identifier, test_plan,  endpoint_path, code_analysis_task, pydantic_definition_task, project_id, preferences
     ):
         return Task(
             description= f"""Test Plan {test_plan} for identifier {identifier} and project id {project_id}
@@ -63,7 +64,7 @@ class TestTasks:
     * Analyze the provided function code and identify the key components, such as dependencies, database connections, and external API calls, that need to be mocked or set up for testing.
     * Review the provided test plan and understand the different test scenarios that need to be covered. Consider edge cases, error handling, and potential variations in input data.
     * Use the provided context and pydantic classes from the output of the code analysis task to create the necessary pydantic objects for the test data and mock test data setup. This ensures that the tests align with the expected data structures used in the function.
-    * Pay attention to the preferences provided: ({None}). If a list of entities (functions, classes, databases, etc.) is specified to be mocked, strictly follow these preferences. If the preferences are empty, use your judgment to determine which components should be mocked, such as the database and any external API calls.
+    * Pay attention to the preferences provided: ({preferences}). If a list of entities (functions, classes, databases, etc.) is specified to be mocked, strictly follow these preferences. If the preferences are empty, use your judgment to determine which components should be mocked, such as the database and any external API calls.
     * Utilize FastAPI testing features like TestClient and dependency overrides to set up the test environment. Create fixtures to minimize code duplication and improve test maintainability.
     * ALWAYS create a new FastAPI app in the test client and INCLUDE THE RELEVANT ROUTERS IN THE APP in it for testing. DO NOT ASSUME where the main FastAPI app is defined. DO NOT REWRITE ROUTERS in the test file.
     * When setting up mocks, use the pytest-mock library. Check if the output structure is defined in the code and use that to create the expected output response data for the test cases. If not defined, infer the expected output based on the test plan outcomes and the provided code under test.

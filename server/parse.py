@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 
 import psycopg2
 from tree_sitter_languages import get_language, get_parser
@@ -9,76 +10,14 @@ from server.endpoint_detection import EndpointManager
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
 from server.utils.parse_helper import delete_folder
-from server.db.session import SessionManager
-from server.schemas import Pydantic
+
 parser = get_parser("python")
 
-# Initialize SQLite Database and Graph
 codebase_map = f"/.momentum/momentum.db"
 neo4j_graph = Neo4jGraph()
 
 def add_codebase_map_path(directory):
     return f"{directory}{codebase_map}"
-
-
-
-def put_pydantic_class(filepath, classname, definition, project_id):
-    with SessionManager() as db:
-        try:
-            pydantic_class = Pydantic(
-                filepath=filepath,
-                classname=classname,
-                definition=definition,
-                project_id=project_id
-            )
-            db.add(pydantic_class)
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            logging.info(
-                f"Pydantic class with identifier {classname} already exists."
-                " Skipping insert."
-            )
-
-def get_pydantic_class(classname, project_id):
-    with SessionManager() as db:
-        try:
-            definitions = db.query(Pydantic.filepath, Pydantic.definition).filter(
-                Pydantic.project_id == project_id,
-                Pydantic.classname == classname
-            ).all()
-        except Exception as e:
-            logging.error("An error occurred: 7", e)
-            definitions = []
-
-    current_dir = os.getcwd()
-    edited_definitions = [
-        (filepath.replace(current_dir, "").lstrip("/"), definition)
-        for filepath, definition in definitions
-    ]
-    return edited_definitions
-
-def get_pydantic_classes(classnames, project_id):
-    with SessionManager() as db:
-        try:
-            definitions = db.query(
-                Pydantic.filepath,
-                Pydantic.classname,
-                Pydantic.definition
-            ).filter(
-                Pydantic.project_id == project_id,
-                Pydantic.classname.in_(classnames)
-            ).all()
-        except Exception as e:
-            logging.error("An error occurred: 8", e)
-            definitions = []
-
-    current_dir = os.getcwd()
-    edited_definitions = [
-        (filepath.replace(current_dir, "").lstrip("/"), classname, definition)
-        for filepath, classname, definition in definitions
-    ]
-    return "".join(str(defn) for defn in edited_definitions)
 
 
 def add_node_safe(
@@ -122,6 +61,7 @@ def add_class_node_safe(directory, file_path, class_name, start, end, project_id
                 "type": "class",
                 "file": file_path,
                 "start": start,
+                "class_name": class_name,
                 "end": end
             },
             project_id,
@@ -163,6 +103,14 @@ def find_pydantic_class(node, pydantic_class_list, file_path):
     return pydantic_class_list
 
 
+def extract_path_after_project(full_path):
+    pattern = r'/projects/[^/]+(/.*)'
+    match = re.search(pattern, full_path)
+    if match:
+        return match.group(1)
+    else:
+        return None
+
 def extract_parent_class(value):
     # Split the string to find the parent class name
     parts = value.split("(")
@@ -172,7 +120,7 @@ def extract_parent_class(value):
 
 
 # Function to recursively append parent class definitions
-def append_parent_class(key, current_dict, original_dict, iteration=0):
+def append_parent_class(key, current_dict, original_dict, project_id, iteration=0):
     # Base cases
     if iteration >= 3 or key == "BaseModel":
         return current_dict[key][1]
@@ -185,15 +133,15 @@ def append_parent_class(key, current_dict, original_dict, iteration=0):
         return current_dict[key][1]
     else:
         # Append parent class definition to the current class definition
-        current_class_def = current_dict[key][1]
-        parent_classes = parent_class.split(",")
+        parent_classes = [cls.strip() for cls in parent_class.split(",")]
         for cls in parent_classes:
-            parent_class_def = append_parent_class(
-                cls.strip(), original_dict, original_dict, iteration + 1
+            parent_class_id = f"{extract_path_after_project(current_dict[key][0])}:{key}"
+            base_class_id = f"{extract_path_after_project(current_dict[cls][0])}:{cls}"
+
+            neo4j_graph.add_extends_relationship(base_class_id, parent_class_id, project_id)
+            append_parent_class(
+                cls.strip(), original_dict, original_dict, project_id, iteration + 1
             )
-            updated_class_def = f"{current_class_def}\n\n{parent_class_def}"
-            current_class_def = updated_class_def
-        return updated_class_def
 
 
 def map_user_defined_functions(directory, source_code, file_path, user_id, project_id):
@@ -827,7 +775,6 @@ def extract_function_metadata(node, parameters=[], class_context=None):
 
 # todo: optimise for single run
 async def analyze_directory(directory, user_id, project_id):
-
     user_defined_functions = {}
     file_index = {}
     all_class_definitions = []
@@ -872,14 +819,11 @@ async def analyze_directory(directory, user_id, project_id):
                     cl_def, pydantic_class_list, file_path
                 )
         depth -= 1
-    updated_pydantic = {}
 
     for key, value in pydantic_classes.items():
-        updated_pydantic[key] = value[0], append_parent_class(
-            key, pydantic_classes, pydantic_classes
+        append_parent_class(
+            key, pydantic_classes, pydantic_classes, project_id
         )
-    for key, value in updated_pydantic.items():
-        put_pydantic_class(value[0], key, value[1], project_id)
     router_metadata_file_mapping = {}
     for subdir, _, files in os.walk(directory):
         for file in files:
@@ -1037,4 +981,7 @@ def get_values(repo_branch, project_manager, user_id):
     project_details = project_manager.get_project_from_db(
         f"{repo_name}-{branch_name}", user_id
     )
-    return repo_name, branch_name, project_details
+    project_deleted = None
+    if project_details:
+        project_deleted = project_details[5]
+    return repo_name, branch_name, project_deleted, project_details

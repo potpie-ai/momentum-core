@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional
 import os
 from server.db.session import SessionManager
-from server.knowledge_graph.flow import understand_flows
 from server.schemas import Project, Endpoint, Explanation, Pydantic
 import logging
 
@@ -14,6 +13,7 @@ from tree_sitter_languages import get_language, get_parser
 from fastapi import HTTPException
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
+from server.celery_worker import celery_worker
 
 PY_LANGUAGE = get_language("python")
 
@@ -476,10 +476,18 @@ class EndpointManager:
                     endpoint = Endpoint(path=path, identifier=identifier, project_id=project_id)
                     db.add(endpoint)
             for dependency in depends:
-                neo4j_graph.connect_nodes(endpoint.identifier, dependency, project_id, {"action": "calls"})
-            db.commit()
+                neo4j_graph.connect_nodes(
+                    identifier, dependency, project_id, {"action": "calls"}
+                )
 
-        asyncio.create_task(understand_flows(project_id, self.directory, user_id))
+        celery_worker.send_task(
+                 'knowledgegraph.task.infer_flows',
+                 kwargs={
+                     'project_id': project_id,
+                     'directory': self.directory,
+                     'user_id': user_id
+                 }
+         )
 
     def get_qualified_endpoint_name(self, path, prefix):
         if prefix == None:
@@ -516,18 +524,6 @@ class EndpointManager:
             ).delete()
             db.commit()
         logging.info(f"Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
-
-    def delete_pydantic_entries(self, project_id, user_id):
-        with SessionManager() as db:
-            db.query(Pydantic).filter(
-                Pydantic.project_id == project_id,
-                Pydantic.project_id.in_(
-                    db.query(Project.id).filter(Project.user_id == user_id)
-                )
-            ).delete()
-            db.commit()
-        logging.info(f"Pydantic entries with project_id {project_id} and user_id {user_id} deleted successfully.")
-
 
     def update_test_plan(self, identifier, plan, project_id):
         with SessionManager() as db:

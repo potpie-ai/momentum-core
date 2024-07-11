@@ -12,6 +12,13 @@ services:
       - "5432:5432"
     volumes:
       - ./data/momentum-srv-postgres:/var/lib/postgresql/data/
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   neo4j:
     image: neo4j:latest
@@ -23,6 +30,8 @@ services:
       - "7687:7687"
     volumes:
       - ./data/neo4j-data:/data
+    networks:
+      - app-network
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -34,7 +43,90 @@ services:
       - 8080:80
     volumes:
       - ./data/pgadmin:/var/lib/pgadmin
+    networks:
+      - app-network
+
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    restart: always
+    environment:
+      - MONGO_INITDB_DATABASE=momentum
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongodb_data:/data/db
+    networks:
+      - app-network
+
+  redis:
+    image: redis:latest
+    container_name: redis_broker
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - app-network
+
+  weaviate:
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - '8082'
+      - --scheme
+      - http
+    image: cr.weaviate.io/semitechnologies/weaviate:1.25.7
+    ports:
+      - 8082:8082
+      - 50051:50051
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    restart: on-failure:0
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'node1'
+    networks:
+      - app-network
+
+  knowledge-graph:
+    build: ./knowledge_graph
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    networks:
+      - app-network
+
+  momentum:
+    build: .
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
+    env_file:
+      - .env
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/tmp/keys/application_default_credentials.json:ro
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
 
 volumes:
   postgres-data:
   neo4j-data:
+  redis:
+  weaviate_data:
+  mongodb_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
