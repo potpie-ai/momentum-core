@@ -12,6 +12,13 @@ services:
       - "5432:5432"
     volumes:
       - ./data/momentum-srv-postgres:/var/lib/postgresql/data/
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   neo4j:
     image: neo4j:latest
@@ -23,6 +30,8 @@ services:
       - "7687:7687"
     volumes:
       - ./data/neo4j-data:/data
+    networks:
+      - app-network
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -34,6 +43,8 @@ services:
       - 8080:80
     volumes:
       - ./data/pgadmin:/var/lib/pgadmin
+    networks:
+      - app-network
 
   mongodb:
     image: mongo
@@ -45,6 +56,8 @@ services:
       - "27017:27017"
     volumes:
       - ./data/mongodb_data:/data/db
+    networks:
+      - app-network
 
   redis:
     image: redis:latest
@@ -53,6 +66,8 @@ services:
       - "6379:6379"
     volumes:
       - ./data/redis:/data
+    networks:
+      - app-network
 
   weaviate:
     command:
@@ -76,6 +91,8 @@ services:
       DEFAULT_VECTORIZER_MODULE: 'none'
       ENABLE_MODULES: ''
       CLUSTER_HOSTNAME: 'node1'
+    networks:
+      - app-network
 
   knowledge-graph:
     build: ./knowledge_graph
@@ -83,6 +100,8 @@ services:
       - "8081:8081"
     env_file:
       - .env
+    networks:
+      - app-network
 
   momentum:
     build: .
@@ -94,6 +113,11 @@ services:
       - ${HOME}/.config/gcloud/application_default_credentials.json:/tmp/keys/application_default_credentials.json:ro
     ports:
       - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
 
 volumes:
   postgres-data:
@@ -102,3 +126,7 @@ volumes:
   weaviate_data:
   mongodb_data:
     driver: local
+
+networks:
+  app-network:
+    driver: bridge
