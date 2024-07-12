@@ -129,7 +129,6 @@ def extract_repository_metadata(repo):
     languages = repo.get_languages()
 
     total_bytes = sum(languages.values())
-    latest_commit = repo.get_commits()[0]
 
     metadata = {
         "basic_info": {
@@ -145,20 +144,16 @@ def extract_repository_metadata(repo):
             "forks": repo.forks_count,
             "watchers": repo.watchers_count,
             "open_issues": repo.open_issues_count,
-            "open_pull_requests": len(list(repo.get_pulls(state='open'))),
         },
         "languages": {
             "breakdown": languages,
             "total_bytes": total_bytes,
         },
         "commit_info": {
-            "total_commits": repo.get_commits().totalCount,
-            "last_commit_date": latest_commit.commit.author.date.isoformat(),
-            "last_commit_sha": latest_commit.sha,
+            "total_commits": repo.get_commits().totalCount
         },
         "contributors": {
             "count": repo.get_contributors().totalCount,
-            "top_5": [contrib.login for contrib in repo.get_contributors()[:5]],
         },
         "topics": repo.get_topics(),
     }
