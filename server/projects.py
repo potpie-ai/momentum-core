@@ -3,6 +3,8 @@ from server.crud import crud_utils
 from server.models.repo_details import ProjectStatusEnum
 from server.schemas import Project
 import logging
+from fastapi import HTTPException
+from datetime import datetime
 
 class ProjectManager:
     def register_project(self, directory: str, project_name: str, repo_name: str, branch_name: str, user_id: str, commit_id: str, default: bool, project_id: int = None):
@@ -102,3 +104,81 @@ class ProjectManager:
                 query = query.filter(Project.repo_name == repo_name)
             projects = query.all()
         return [(p.id, p.branch_name, p.repo_name, p.updated_at, p.is_default, p.status) for p in projects]
+
+
+    def delete_project(self, project_id: int, user_id: str):
+        with SessionManager() as db:
+            try:
+                result = crud_utils.update_project(
+                    db, 
+                    project_id, 
+                    is_deleted=True, 
+                    updated_at=datetime.utcnow(),
+                    user_id=user_id
+                )
+                if not result:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="No matching project found or project is already deleted."
+                    )
+                logging.info(f"Project {project_id} deleted successfully.")
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"An error occurred while deleting the project: {str(e)}"
+                )
+
+    def restore_project(self, project_id: int, user_id: str):
+        with SessionManager() as db:
+            try:
+                result = crud_utils.update_project(
+                    db, 
+                    project_id, 
+                    is_deleted=False,
+                    user_id=user_id
+                )
+                if result:
+                    message = f"Project with ID {project_id} restored successfully."
+                else:
+                    message = "Project not found or already restored."
+                logging.info(message)
+                return message
+            except Exception as e:
+                db.rollback()
+                logging.error(f"An error occurred: {e}")
+                return "Error occurred during restoration."
+
+    def restore_all_project(self, repo_name: str, user_id: str):
+        with SessionManager() as db:
+            try:
+                projects = crud_utils.get_projects_by_repo_name(db, repo_name, user_id, is_deleted=True)
+                for project in projects:
+                    crud_utils.update_project(db, project.id, is_deleted=False)
+                if projects:
+                    message = f"Projects with repo_name {repo_name} restored successfully."
+                else:
+                    message = "Projects not found or already restored."
+                logging.info(message)
+                return message
+            except Exception as e:
+                db.rollback()
+                logging.error(f"An error occurred: {e}")
+                return "Error occurred during restoration."
+
+    def delete_all_project_by_repo_name(self, repo_name: str, user_id: str):
+        with SessionManager() as db:
+            try:
+                projects = crud_utils.get_projects_by_repo_name(db, repo_name, user_id, is_deleted=False)
+                for project in projects:
+                    crud_utils.update_project(db, project.id, is_deleted=True)
+                if projects:
+                    message = f"Projects with repo_name {repo_name} deleted successfully."
+                else:
+                    message = "Projects not found or already deleted."
+                logging.info(message)
+                return message
+            except Exception as e:
+                db.rollback()
+                logging.error(f"An error occurred: {e}")
+                return "Error occurred during deletion."
