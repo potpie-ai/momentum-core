@@ -20,7 +20,7 @@
 </p>
 
 <h1 align="center">
-  The open-source behavioural auditor for backend code
+  The open-source integration testing tool for your backend code
 </h1>
 
 <div align="center">
@@ -46,21 +46,23 @@
 </p>
 
 
-Momentum is an open-source tool designed to generate and understand powerful insights into your codebase. It helps you understand changes and impacts, generate test behaviours and test code and much more. 
+Momentum is an open-source tool designed to generate and understand powerful insights into your codebase. It helps you understand changes and their impacts, generate test behaviours and integration test code and much more. 
 
 ## Table of Contents
 
 - [Introduction](#introduction)
-- [Features](#features)
+- [What is a behavior?](#what-is-a-behavior)
+- [Here's how momentum can help you!](#heres-how-momentum-can-help-you)
 - [Installation](#installation)
+- [Build Instructions with docker](#build-instructions-with-docker)
 - [Usage](#usage)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## Introduction
 
-momentum is a code auditor that analyses the necessary code behavior and tests it at every git push to ensure the code is ready for production.
-It understands your backend codebase and generates visualisation and precise context for test plans and test cases for all entry points detected in the system.
+momentum analyses your codebase and understands intended code behavior and tests it at every git push to ensure the code is ready for production.
+It generates visualisation and precise context for test plans and test cases for all entry points detected in the system.
 
 ## What is a behavior?
 A behavior is defined as a task or functionality you were trying to create using your code. Examples could be deleting a document using a deleting API or creating a new user in the database. Behaviors can also be more complex sometimes where third-party dependencies are associated for example fetching data from a payment API to check the status. Behaviours must be independently executable tasks.
