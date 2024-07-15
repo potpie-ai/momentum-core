@@ -38,12 +38,12 @@ def download_and_extract_tarball(owner, repo, branch, target_dir, auth, repo_det
         logging.error(f"Error writing tarball to file: {e}")
         return e
 
-    temp_extract_dir = os.path.join(target_dir, f'{repo}-{branch}-{user_id}')
+    final_dir = os.path.join(target_dir, f'{repo}-{branch}-{user_id}')
     try:
         with tarfile.open(tarball_path, "r:gz") as tar:
             for member in tar.getmembers():
                 member_path = os.path.join(
-                    temp_extract_dir,
+                    final_dir,
                     os.path.relpath(member.name, start=member.name.split("/")[0]),
                 )
                 if member.isdir():
@@ -65,12 +65,6 @@ def download_and_extract_tarball(owner, repo, branch, target_dir, auth, repo_det
         logging.error(f"Error removing tarball: {e}")
         return e
 
-    final_dir = os.path.join(target_dir, f"{repo}-{branch}-{user_id}")
-    try:
-        shutil.move(temp_extract_dir, final_dir)
-    except shutil.Error as e:
-        logging.error(f"Error moving extracted directory: {e}")
-        # return e
     return final_dir
 
    
