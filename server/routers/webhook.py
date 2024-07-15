@@ -60,7 +60,7 @@ async def parse_repos(payload, request: Request):
                 owner = repo_details.owner.login
                 try:
                     if project_details is None:
-                        dir_details, project_id = setup_project_directory(
+                        dir_details, project_id, should_parse_repo = setup_project_directory(
                             owner,
                             repo_name,
                             branch_name,
@@ -68,17 +68,22 @@ async def parse_repos(payload, request: Request):
                             repo_details,
                             user_id
                         )
-                        await analyze_directory(dir_details, user_id, project_id)
-                        project_manager.update_project_status(
-                            project_id, ProjectStatusEnum.READY
-                        )
-                        request.state.additional_data[repo_name] = {
-                            "repository_name": repo_name,
-                            "branch_name": branch_name,
-                            "project_id": project_id,
-                            "size": repo_details.size / 1024,
-                            "new_project": True
-                        }
+                        if should_parse_repo:
+                            await analyze_directory(dir_details, user_id, project_id)
+                            project_manager.update_project_status(
+                                project_id, ProjectStatusEnum.READY
+                            )
+                            request.state.additional_data[repo_name] = {
+                                "repository_name": repo_name,
+                                "branch_name": branch_name,
+                                "project_id": project_id,
+                                "size": repo_details.size / 1024,
+                                "new_project": True
+                            }
+                        else:
+                            project_manager.update_project_status(
+                                project_id, ProjectStatusEnum.ERROR
+                            )
                     else:
                         project_id = project_details[2]
                         if is_deleted:
@@ -105,7 +110,7 @@ async def parse_repos(payload, request: Request):
                 owner = repo_details.owner.login
                 reparse_cleanup(project_details, user_id)
                 project_id = project_details[2]
-                dir_details, project_id = setup_project_directory(
+                dir_details, project_id, should_parse_repo = setup_project_directory(
                     owner,
                     repo_name,
                     branch_name,
@@ -114,17 +119,22 @@ async def parse_repos(payload, request: Request):
                     user_id,
                     project_id
                 )
-                await analyze_directory(dir_details, user_id, project_id)
-                request.state.additional_data[repo_name] = {
-                    "repository_name": repo_name,
-                    "branch_name": branch_name,
-                    "project_id": project_id,
-                    "size": repo_details.size / 1024,
-                    "new_project": False
-                }
-            project_manager.update_project_status(
-                project_id, ProjectStatusEnum.READY
-            )
+                if should_parse_repo:
+                    await analyze_directory(dir_details, user_id, project_id)
+                    request.state.additional_data.append({
+                        "repository_name": repo_name,
+                        "branch_name": branch_name,
+                        "project_id": project_id,
+                        "size": repo_details.size / 1024,
+                        "new_project": False
+                    })
+                    project_manager.update_project_status(
+                        project_id, ProjectStatusEnum.READY
+                    )
+                else:
+                    project_manager.update_project_status(
+                        project_id, ProjectStatusEnum.ERROR
+                    )
             github.close()
     elif "action" in payload and payload["action"] == "removed":
         auth, installation_auth, user_details, github = GithubService.get_app_auth_details(payload)

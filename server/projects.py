@@ -39,7 +39,7 @@ class ProjectManager:
             conn.close()
 
     def register_project(self, directory, project_name, repo_name, branch_name, user_id, commit_id, default: bool,
-                         project_id=None):
+                         project_metadata, project_id=None):
         try:
             conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
             cursor = conn.cursor()
@@ -54,10 +54,11 @@ class ProjectManager:
                 message = f"Project '{project_id}' updated successfully."
             else:
                 cursor.execute('''
-                    INSERT INTO projects (directory, project_name, repo_name, branch_name, user_id, commit_id, is_default)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO projects (directory, project_name, repo_name, branch_name, 
+                    user_id, commit_id, is_default, properties)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
-                ''', (directory, project_name, repo_name, branch_name, user_id, commit_id, default))
+                ''', (directory, project_name, repo_name, branch_name, user_id, commit_id, default, project_metadata))
                 message = f"Project '{project_name}' registered successfully."
             conn.commit()
             project_id = cursor.fetchone()[0]
