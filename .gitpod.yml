@@ -1,0 +1,35 @@
+image:
+  file: .gitpod.Dockerfile
+
+tasks:
+  - name: Start services
+    init: |
+      docker-compose up -d
+    command: |
+      docker-compose logs -f
+
+ports:
+  - port: 5432
+    onOpen: open-preview
+  - port: 7474
+    onOpen: open-preview
+  - port: 7687
+    onOpen: open-preview
+  - port: 8080
+    onOpen: open-preview
+  - port: 27017
+    onOpen: open-preview
+  - port: 6379
+    onOpen: open-preview
+  - port: 8082
+    onOpen: open-preview
+  - port: 50051
+    onOpen: open-preview
+  - port: 8081
+    onOpen: open-preview
+  - port: 8001
+    onOpen: open-preview
+
+vscode:
+  extensions:
+    - ms-azuretools.vscode-docker
