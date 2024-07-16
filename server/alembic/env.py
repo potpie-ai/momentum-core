@@ -11,7 +11,7 @@ from server.schemas.base import Base
 CURRENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(CURRENT_DIR)
 
-load_dotenv()
+load_dotenv(override=True)
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

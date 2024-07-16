@@ -37,7 +37,7 @@ services:
     image: dpage/pgadmin4:latest
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: vn.sh@outlook.com
+      PGADMIN_DEFAULT_EMAIL: peopleofearth@momentum.co
       PGADMIN_DEFAULT_PASSWORD: password
     ports:
       - 8080:80
