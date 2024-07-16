@@ -10,8 +10,6 @@ services:
       POSTGRES_DB: momentum
     ports:
       - "5432:5432"
-    volumes:
-      - ./data/momentum-srv-postgres:/var/lib/postgresql/data/
     networks:
       - app-network
     healthcheck:
@@ -19,6 +17,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: support@momentum.sh
+      PGADMIN_DEFAULT_PASSWORD: password
+    ports:
+      - 8080:80
+    networks:
+      - app-network
 
   neo4j:
     image: neo4j:latest
@@ -28,21 +37,6 @@ services:
     ports:
       - "7474:7474"
       - "7687:7687"
-    volumes:
-      - ./data/neo4j-data:/data
-    networks:
-      - app-network
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: peopleofearth@momentum.co
-      PGADMIN_DEFAULT_PASSWORD: password
-    ports:
-      - 8080:80
-    volumes:
-      - ./data/pgadmin:/var/lib/pgadmin
     networks:
       - app-network
 
@@ -54,8 +48,6 @@ services:
       - MONGO_INITDB_DATABASE=momentum
     ports:
       - "27017:27017"
-    volumes:
-      - ./data/mongodb_data:/data/db
     networks:
       - app-network
 
@@ -64,8 +56,6 @@ services:
     container_name: redis_broker
     ports:
       - "6379:6379"
-    volumes:
-      - ./data/redis:/data
     networks:
       - app-network
 
@@ -81,8 +71,6 @@ services:
     ports:
       - 8082:8082
       - 50051:50051
-    volumes:
-      - weaviate_data:/var/lib/weaviate
     restart: on-failure:0
     environment:
       QUERY_DEFAULTS_LIMIT: 25
@@ -105,12 +93,8 @@ services:
 
   momentum:
     build: .
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
     env_file:
       - .env
-    volumes:
-      - ${HOME}/.config/gcloud/application_default_credentials.json:/tmp/keys/application_default_credentials.json:ro
     ports:
       - "8001:8001"
     depends_on:
@@ -118,14 +102,6 @@ services:
         condition: service_healthy
     networks:
       - app-network
-
-volumes:
-  postgres-data:
-  neo4j-data:
-  redis:
-  weaviate_data:
-  mongodb_data:
-    driver: local
 
 networks:
   app-network:
