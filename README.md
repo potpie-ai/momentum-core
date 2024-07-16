@@ -42,10 +42,13 @@
   <a href="https://roadmap.momentum.sh">Roadmap</a>
   ·
   <a href="https://twitter.com/momentumdotsh">X</a>
-  
 </p>
 
+<div align="center"> 
+  
+  [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/getmomentum/momentum-core)
 
+</div>
 Momentum is an open-source tool designed to generate and understand powerful insights into your codebase. It helps you understand changes and impacts, generate test behaviours and test code and much more. 
 
 ## Table of Contents
