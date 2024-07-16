@@ -18,6 +18,17 @@ services:
       timeout: 5s
       retries: 5
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: support@momentum.sh
+      PGADMIN_DEFAULT_PASSWORD: password
+    ports:
+      - 8080:80
+    networks:
+      - app-network
+
   neo4j:
     image: neo4j:latest
     container_name: neo4j
