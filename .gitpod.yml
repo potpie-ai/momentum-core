@@ -1,9 +1,14 @@
-image:
-  file: .gitpod.Dockerfile
-
 tasks:
-  - name: Start services
+  - name: Start Docker services
     init: |
+      sudo service docker start
+      mkdir -p ./data/momentum-srv-postgres
+      mkdir -p ./data/neo4j-data
+      mkdir -p ./data/pgadmin
+      mkdir -p ./data/mongodb_data
+      mkdir -p ./data/redis
+      mkdir -p ./data/weaviate
+      sudo chown -R gitpod:gitpod ./data
       docker-compose up -d
     command: |
       docker-compose logs -f
