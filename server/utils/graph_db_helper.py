@@ -17,14 +17,20 @@ class Neo4jDriverSingleton:
             )
         return cls._instance
     
+      
+    @classmethod
+    def close_instance(cls):
+        if cls._instance is not None:
+            cls._instance.close()
+            cls._instance = None
+    
 class Neo4jGraph:
 
     def __init__(self):
         self.driver = Neo4jDriverSingleton.get_instance()
 
     def close(self):
-        # No need to close the driver here, as it's managed by the singleton
-        pass
+        Neo4jDriverSingleton.close_instance()
 
     def upsert_node(self, function_identifier, properties, project_id):
         properties['project_id'] = project_id
