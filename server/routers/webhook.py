@@ -80,7 +80,7 @@ async def parse_repos(payload, request: Request):
                             "new_project": True
                         }
                     else:
-                        project_id = project_details[2]
+                        project_id = project_details["id"]
                         if is_deleted:
                             project_manager.restore_all_project(repo_branch.repo_name, user_id)
                         if GithubService.check_is_commit_added(repo_details, project_details, branch_name):
@@ -104,7 +104,7 @@ async def parse_repos(payload, request: Request):
             if project_details is not None:
                 owner = repo_details.owner.login
                 reparse_cleanup(project_details, user_id)
-                project_id = project_details[2]
+                project_id = project_details["id"]
                 dir_details, project_id = setup_project_directory(
                     owner,
                     repo_name,

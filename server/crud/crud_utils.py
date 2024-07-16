@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from server.schemas import User, Project, Endpoint, Explanation, Pydantic
 
 # User CRUD operations
@@ -35,13 +36,44 @@ def create_project(db: Session, project: Project):
     db.refresh(project)
     return project
 
+
 def update_project(db: Session, project_id: int, **kwargs):
-    db.query(Project).filter(Project.id == project_id).update(kwargs)
-    db.commit()
+    project = db.query(Project).filter(Project.id == project_id).first()
+
+    if project is None:
+        return None  # Project doesn't exist
+
+    result = db.query(Project).filter(Project.id == project_id).update(kwargs)
+
+    if result > 0:
+        db.commit()
+        return result
+
+    return None
 
 def delete_project(db: Session, project_id: int):
     db.query(Project).filter(Project.id == project_id).delete()
     db.commit()
+
+
+def get_projects_by_repo_name(db: Session, repo_name: str, user_id: str, is_deleted: bool = False):
+    try:
+        projects = db.query(Project).filter(
+            and_(
+                Project.repo_name == repo_name,
+                Project.user_id == user_id,
+                Project.is_deleted == is_deleted
+            )
+        ).all()
+
+        return projects
+    except Exception as e:
+        db.rollback()
+        # Log the error
+        print(f"Error fetching projects: {str(e)}")
+        # You might want to raise a custom exception here instead of returning None
+        return None
+
 
 # Endpoint CRUD operations
 def get_endpoint_by_identifier(db: Session, identifier: str, project_id: int):

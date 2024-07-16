@@ -59,7 +59,7 @@ class ProjectManager:
         with SessionManager() as db:
             project = db.query(Project).filter(Project.project_name == project_name, Project.user_id == user_id).first()
             if project:
-                return project.project_name, project.directory, project.id, project.commit_id, project.status
+                return project
             else:
                 return None
 

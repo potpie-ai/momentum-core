@@ -1,20 +1,29 @@
+import ast
+import io
 import json
 import logging
 import os
 import re
 
 import psycopg2
+import toml
+from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm.exc import DetachedInstanceError
 from tree_sitter_languages import get_language, get_parser
+from tree_sitter import Node
 
 from server.endpoint_detection import EndpointManager
+from server.schemas import Project
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
 from server.utils.parse_helper import delete_folder
 
 parser = get_parser("python")
-
+parser2 = get_parser("toml")
 codebase_map = f"/.momentum/momentum.db"
 neo4j_graph = Neo4jGraph()
+
+logger = logging.getLogger(__name__)
 
 def add_codebase_map_path(directory):
     return f"{directory}{codebase_map}"
@@ -773,6 +782,20 @@ def extract_function_metadata(node, parameters=[], class_context=None):
     return function_name, parameters, start, end, response
 
 
+def parse_config(content: str) -> dict:
+    try:
+        # Use StringIO to create a file-like object from the string
+        config_io = io.StringIO(content)
+        return toml.load(config_io)
+    except toml.TomlDecodeError as e:
+        raise ValueError(f"Invalid TOML: {str(e)}")
+
+def print_tree(node, depth=0):
+    print(f"{'  ' * depth}{node.type}: {node.text.decode('utf-8')}")
+    for child in node.children:
+        print_tree(child, depth + 1)
+
+
 # todo: optimise for single run
 async def analyze_directory(directory, user_id, project_id):
     user_defined_functions = {}
@@ -970,10 +993,35 @@ def get_code_for_function(function_identifier):
 
 
 def get_node(function_identifier, project_details):
-    return neo4j_graph.get_node_by_id(function_identifier, project_details[2])
+    return neo4j_graph.get_node_by_id(function_identifier, project_details["id"])
 
 def get_node_by_id(node_id, project_id):
     return neo4j_graph.get_node_by_id(node_id, project_id)
+
+
+def model_to_dict(model, max_depth=1, current_depth=0):
+    if current_depth > max_depth:
+        return None
+
+    result = {}
+    for key in class_mapper(model.__class__).column_attrs.keys():
+        result[key] = getattr(model, key)
+
+    # Handle relationships
+    for rel_name, rel_attr in class_mapper(model.__class__).relationships.items():
+        try:
+            related_obj = getattr(model, rel_name)
+            if related_obj is not None:
+                if isinstance(related_obj, list):
+                    result[rel_name] = [model_to_dict(item, max_depth, current_depth + 1) for item in related_obj]
+                else:
+                    result[rel_name] = model_to_dict(related_obj, max_depth, current_depth + 1)
+        except DetachedInstanceError:
+            # Skip this relationship if it's not loaded
+            pass
+
+    return result
+
 
 def get_values(repo_branch, project_manager, user_id):
     repo_name = repo_branch.repo_name.split("/")[-1]
@@ -983,5 +1031,5 @@ def get_values(repo_branch, project_manager, user_id):
     )
     project_deleted = None
     if project_details:
-        project_deleted = project_details[5]
-    return repo_name, branch_name, project_deleted, project_details
+        project_deleted = project_details.is_deleted
+    return repo_name, branch_name, project_deleted, model_to_dict(project_details)

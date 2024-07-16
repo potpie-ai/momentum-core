@@ -333,18 +333,18 @@ To help integration test the flow above:
         return code
 
     async def generate_test_plan_for_endpoint(
-        self, identifier: str, project_details: list, preferences: dict = None 
+        self, identifier: str, project_details: dict, preferences: dict = None
     ):  
         if preferences is None:
-            preferences = json.loads(EndpointManager(project_details[1]).get_preferences(identifier, project_details[2]))
+            preferences = json.loads(EndpointManager(project_details["directory"]).get_preferences(identifier, project_details["id"]))
         
         if preferences:
             to_be_mocked = preferences["entities_to_mock"]
             is_db_mocked = preferences["is_db_mocked"]
         
-        flow = get_flow(identifier, project_details[2])
+        flow = get_flow(identifier, project_details["id"])
         graph = get_graphical_flow_structure(
-            identifier, project_details[1], project_details[2]
+            identifier, project_details["directory"], project_details["id"]
         )
         if len(flow) == 0:
             raise HTTPException(
@@ -360,7 +360,7 @@ To help integration test the flow above:
                 + self._get_code_for_node(node)
                 + "\n explanation: \n"
                 + await self._get_explanation_for_function(
-                    function, node, project_details[2]
+                    function, node, project_details["id"]
                 )
             )
         context = (
@@ -372,8 +372,8 @@ To help integration test the flow above:
         test_plan = self._extract_json(test_plan.content)
         plan_obj = TestPlan(**test_plan)
         (
-            EndpointManager( project_details[1]).update_test_plan(
-                identifier, plan_obj.model_dump_json(), project_details[2]
+            EndpointManager( project_details["directory"]).update_test_plan(
+                identifier, plan_obj.model_dump_json(), project_details["id"]
             )
         )
         return test_plan

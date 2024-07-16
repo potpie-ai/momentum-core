@@ -19,6 +19,7 @@ class Project(Base):
     user_id = Column(String(255), nullable=False)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     commit_id = Column(String(255))
+    is_deleted = Column(Boolean, default=False)
     updated_at = Column(
         TIMESTAMP,
         default=func.current_timestamp(),

@@ -38,7 +38,7 @@ class GithubService:
     def check_is_commit_added(repo_details, project_details, branch_name):
         branch = repo_details.get_branch(branch_name)
         latest_commit_sha = branch.commit.sha
-        if latest_commit_sha == project_details[3] and project_details[4] == ProjectStatusEnum.READY:
+        if latest_commit_sha == project_details["commit_id"] and project_details["status"] == ProjectStatusEnum.READY:
             return False
         else:
             return True
