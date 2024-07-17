@@ -1,4 +1,4 @@
-version: '1.0'
+version: '3.8'
 
 services:
   postgres:
@@ -20,6 +20,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4:latest
+    container_name: pgadmin
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: support@momentum.sh
@@ -60,30 +61,27 @@ services:
       - app-network
 
   weaviate:
-    command:
-      - --host
-      - 0.0.0.0
-      - --port
-      - '8082'
-      - --scheme
-      - http
     image: cr.weaviate.io/semitechnologies/weaviate:1.25.7
+    container_name: weaviate
+    command: "--host 0.0.0.0 --port 8082 --scheme http"
     ports:
       - 8082:8082
       - 50051:50051
-    restart: on-failure:0
+    restart: on-failure
     environment:
       QUERY_DEFAULTS_LIMIT: 25
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
-      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
-      DEFAULT_VECTORIZER_MODULE: 'none'
-      ENABLE_MODULES: ''
-      CLUSTER_HOSTNAME: 'node1'
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      DEFAULT_VECTORIZER_MODULE: "none"
+      ENABLE_MODULES: ""
+      CLUSTER_HOSTNAME: "node1"
     networks:
       - app-network
 
   knowledge-graph:
-    build: ./knowledge_graph
+    build:
+      context: ./knowledge_graph
+    container_name: knowledge_graph
     ports:
       - "8081:8081"
     env_file:
@@ -92,14 +90,22 @@ services:
       - app-network
 
   momentum:
-    build: .
+    build:
+      context: .
+    container_name: momentum
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
     env_file:
       - .env
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/tmp/keys/application_default_credentials.json:ro
     ports:
       - "8001:8001"
     depends_on:
       postgres:
         condition: service_healthy
+      knowledge-graph:
+        condition: service_started
     networks:
       - app-network
 
