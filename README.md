@@ -47,6 +47,7 @@
 <div align="center"> 
   
   [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/getmomentum/momentum-core)
+</div>
 
 Momentum is an open-source tool designed to generate and understand powerful insights into your codebase. It helps you understand changes and their impacts, generate test behaviours and integration test code and much more. 
 
