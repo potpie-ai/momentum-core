@@ -350,9 +350,11 @@ To help integration test the flow above:
                 preferences = {}
         
         if preferences:
-            to_be_mocked = preferences["entities_to_mock"]
-            is_db_mocked = preferences["is_db_mocked"]
+            # Use the get method to safely access the keys
+            to_be_mocked = preferences.get("entities_to_mock")
+            is_db_mocked = preferences.get("is_db_mocked")
         
+
         flow = get_flow(identifier, project_details[2])
         graph = get_graphical_flow_structure(
             identifier, project_details[1], project_details[2]
