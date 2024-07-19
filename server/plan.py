@@ -345,12 +345,16 @@ To help integration test the flow above:
         self, identifier: str, project_details: list, preferences: dict = None 
     ):  
         if preferences is None:
-            preferences = json.loads(EndpointManager(project_details[1]).get_preferences(identifier, project_details[2]))
+            preferences = EndpointManager(project_details[1]).get_preferences(identifier, project_details[2])
+            if preferences is None:
+                preferences = {}
         
         if preferences:
-            to_be_mocked = preferences["entities_to_mock"]
-            is_db_mocked = preferences["is_db_mocked"]
+            # Use the get method to safely access the keys
+            to_be_mocked = preferences.get("entities_to_mock")
+            is_db_mocked = preferences.get("is_db_mocked")
         
+
         flow = get_flow(identifier, project_details[2])
         graph = get_graphical_flow_structure(
             identifier, project_details[1], project_details[2]
