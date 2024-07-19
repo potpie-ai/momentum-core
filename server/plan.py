@@ -345,7 +345,11 @@ To help integration test the flow above:
         self, identifier: str, project_details: list, preferences: dict = None 
     ):  
         if preferences is None:
-            preferences = json.loads(EndpointManager(project_details[1]).get_preferences(identifier, project_details[2]))
+            preferences_data = EndpointManager(project_details[1]).get_preferences(identifier, project_details[2])
+            if preferences_data:  
+                preferences = json.loads(preferences_data)
+            else:
+                preferences = {}
         
         if preferences:
             to_be_mocked = preferences["entities_to_mock"]
