@@ -24,7 +24,6 @@ mongoengine==0.27.0
 portkey_ai
 PyJWT
 setuptools
-portkey_ai
 gunicorn
 sentry-sdk[fastapi]
 pydantic==2.7.4
@@ -33,4 +32,11 @@ psycopg
 embedchain==0.1.103
 kombu==5.4.0rc1
 embedchain[weaviate]
-celery[redis]  
+celery[redis]
+functions-framework==3.*
+flask==2.*
+asyncio
+redis
+eventlet
+google-cloud-logging
+certifi

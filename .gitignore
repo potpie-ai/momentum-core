@@ -11,3 +11,5 @@ venv/
 /server/.hypothesis
 .hypothesis
 db
+*.json
+*.env
