@@ -219,7 +219,7 @@ async def handle_open_pr(payload):
         project_id = project_details[2]
         if GithubService.check_is_commit_added(repo_details, project_details, branch_name):
             reparse_cleanup(project_details, user_id)
-            dir_details, project_id = setup_project_directory(owner, repo_name,
+            dir_details, project_id = setup_project_directory(owner, repo_name.split("/")[-1],
                                                                 branch_name, installation_auth, repo_details, user_id,
                                                                 project_id)
             await analyze_directory(dir_details, user_id, project_id)
