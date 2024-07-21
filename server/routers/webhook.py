@@ -224,7 +224,7 @@ async def handle_open_pr(payload):
     project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
     if project_details is None:
         #Create project for the branch & parsing it
-        dir_details, project_id = setup_project_directory(
+        dir_details, project_id, _ = setup_project_directory(
             owner,
             repo_name.split("/")[-1],
             branch_name,
@@ -242,7 +242,7 @@ async def handle_open_pr(payload):
         project_id = project_details[2]
         if GithubService.check_is_commit_added(repo_details, project_details, branch_name):
             reparse_cleanup(project_details, user_id)
-            dir_details, project_id = setup_project_directory(owner, repo_name.split("/")[-1],
+            dir_details, project_id, _ = setup_project_directory(owner, repo_name.split("/")[-1],
                                                                 branch_name, installation_auth, repo_details, user_id,
                                                                 project_id)
             await analyze_directory(dir_details, user_id, project_id)
@@ -265,40 +265,44 @@ async def handle_comment_with_mention(payload, comment):
     repo_name = payload['repository']['full_name']
     issue_number = payload['issue']['number']
     comment_list = comment.split(" ")
+    try:
+        #generating auth & creating github object
+        installation_auth = get_installation_auth(payload)
+        github = Github(auth=installation_auth)
+        repo = github.get_repo(repo_name)
+        pull_request = repo.get_pull(issue_number)
+        branch_name = pull_request.head.ref
+        #Fetching project details & userid from database
+        project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
+        endpoint_path = " ".join(comment_list[comment_list.index("/plan") + 1:])
+        user_id = project_details[3]
+        
+        identifier = EndpointManager(
+            project_details[1]
+        ).get_endpoint_id_from_path(endpoint_path, project_details[2])
 
-    #generating auth & creating github object
-    installation_auth = get_installation_auth(payload)
-    github = Github(auth=installation_auth)
-    repo = github.get_repo(repo_name)
-    pull_request = repo.get_pull(issue_number)
-    branch_name = pull_request.head.ref
-    #Fetching project details & userid from database
-    project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
-    endpoint_path = " ".join(comment_list[comment_list.index("/plan") + 1:])
-    user_id = project_details[3]
+        #Fetch test plan for specified identifier
+        test_plan = EndpointManager(
+            project_details[1]
+        ).get_test_plan(identifier, project_details[2])
+        if test_plan is None:
+            try:
+                test_plan = await Plan(
+                    user_id
+                ).generate_test_plan_for_endpoint(identifier, project_details)
+            except Exception as e:
+                raise ValueError(f"An error occurred while generating test_plan: {e}")
+            
+        #Commenting on PR with test plan info.
+        if test_plan != {}:
+            test_plan_comment = f"Test plan for {endpoint_path}:\n" + test_plan_to_markdown(test_plan)
+            pull_request.create_issue_comment(test_plan_comment)
     
-    identifier = EndpointManager(
-        project_details[1]
-    ).get_endpoint_id_from_path(endpoint_path, project_details[2])
-
-    #Fetch test plan for specified identifier
-    test_plan = EndpointManager(
-        project_details[1]
-    ).get_test_plan(identifier, project_details[2])
-    if test_plan is None:
-        try:
-            test_plan = await Plan(
-                user_id
-            ).generate_test_plan_for_endpoint(identifier, project_details)
-        except Exception:
-            test_plan = {}
-        
-    #Commenting on PR with test plan info.
-    if test_plan != "":
-        test_plan_comment = f"Test plan for {endpoint_path}:\n" + test_plan_to_markdown(test_plan)
-        pull_request.create_issue_comment(test_plan_comment)
-        github.close()
-        
+    except Exception as e:
+        logging.error(f"An error occurred while generating test_plan: {e}")
+    
+    finally:
+        github.close()       
 
 def test_plan_to_markdown(test_plan):
     # Extract the keys from the dictionary
@@ -326,7 +330,8 @@ def parse_blast_radius_to_markdown(blast_radius):
     markdown_output = "| Filename | Entry Point |\n"
     markdown_output += "| --- | --- |\n"
     
-    for filename, endpoints in blast_radius.items():
+    for filename in blast_radius:
+        endpoints = blast_radius[filename]
         for endpoint in endpoints:
             entry_point = endpoint["entryPoint"]
             markdown_output += f"| {filename} | {entry_point} |\n"
