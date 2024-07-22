@@ -49,9 +49,7 @@ class GithubService:
         try:
             project_id = node["project_id"]
             project_manager = ProjectManager()
-            repo_details = project_manager.get_repo_and_branch_name(project_id=project_id)
-            repo_name = repo_details[0]
-            branch_name = repo_details[1]
+            repo_name, branch_name = project_manager.get_repo_and_branch_name(project_id=project_id)
 
             file_path = node["id"].split(':')[0].lstrip('/')
             start_line = node["start"]

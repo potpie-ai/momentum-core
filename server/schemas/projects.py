@@ -1,5 +1,6 @@
 from enum import Enum
 from sqlalchemy import TIMESTAMP, Boolean, CheckConstraint, Column, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, BYTEA
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKeyConstraint
 from sqlalchemy.sql import func
@@ -14,6 +15,7 @@ class Project(Base):
     directory = Column(Text, unique=True)
     is_default = Column(Boolean, default=False)
     project_name = Column(Text)
+    properties = Column(BYTEA)
     repo_name = Column(Text)
     branch_name = Column(Text)
     user_id = Column(String(255), nullable=False)

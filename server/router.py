@@ -91,8 +91,8 @@ async def parse_directory(
                 project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
                 message = "Repository doesn't consist of a language currently supported."
         else:
-            dir_details = project_details.directory
-            project_id = project_details.id
+            dir_details = project_details["directory"]
+            project_id = project_details["id"]
             if is_deleted:
                 message = project_manager.restore_project(project_id, user_id)
             else:

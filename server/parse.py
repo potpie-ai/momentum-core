@@ -1000,20 +1000,28 @@ def get_node_by_id(node_id, project_id):
 
 
 def model_to_dict(model, max_depth=1, current_depth=0):
-    if current_depth > max_depth:
+    if model is None or current_depth > max_depth:
         return None
 
     result = {}
-    for key in class_mapper(model.__class__).column_attrs.keys():
+
+    try:
+        mapper = class_mapper(model.__class__)
+    except:
+        # If it's not a SQLAlchemy model class, return the object as is
+        return model
+
+    for key in mapper.column_attrs.keys():
         result[key] = getattr(model, key)
 
     # Handle relationships
-    for rel_name, rel_attr in class_mapper(model.__class__).relationships.items():
+    for rel_name, rel_attr in mapper.relationships.items():
         try:
             related_obj = getattr(model, rel_name)
             if related_obj is not None:
                 if isinstance(related_obj, list):
-                    result[rel_name] = [model_to_dict(item, max_depth, current_depth + 1) for item in related_obj]
+                    result[rel_name] = [model_to_dict(item, max_depth, current_depth + 1) for item in related_obj if
+                                        item is not None]
                 else:
                     result[rel_name] = model_to_dict(related_obj, max_depth, current_depth + 1)
         except DetachedInstanceError:
