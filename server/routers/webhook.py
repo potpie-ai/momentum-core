@@ -296,6 +296,7 @@ async def handle_comment_with_mention(payload, comment):
         #Commenting on PR with test plan info.
         if test_plan != {}:
             test_plan_comment = f"Test plan for {endpoint_path}:\n" + test_plan_to_markdown(test_plan)
+            test_plan_comment += "\nHead over to the [momentum app](https://app.momentum.sh/) to visualise and test your changes"
             pull_request.create_issue_comment(test_plan_comment)
     
     except Exception as e:
@@ -327,7 +328,9 @@ def get_installation_auth(payload):
     return auth.get_installation_auth(payload['installation']['id'])
 
 def parse_blast_radius_to_markdown(blast_radius):
-    markdown_output = "| Filename | Entry Point |\n"
+    markdown_output = "The scope of impact of your current changes. Learn more about [momentum ↗︎](https://momentum.sh/)\n"
+    markdown_output += "\n## Blast Radius:\n"
+    markdown_output += "\n| Filename | Entry Point |\n"
     markdown_output += "| --- | --- |\n"
     
     for filename in blast_radius:
@@ -336,7 +339,7 @@ def parse_blast_radius_to_markdown(blast_radius):
             entry_point = endpoint["entryPoint"]
             markdown_output += f"| {filename} | {entry_point} |\n"
     
-    return "## Blast Radius:\n"+ markdown_output
+    return markdown_output
 
 def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, installation_auth, base_branch
     ):
