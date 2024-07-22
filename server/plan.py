@@ -186,15 +186,15 @@ To help integration test the flow above:
             file.write(result)
         return filename
 
- 
+
     async def _get_explanation_for_function(self, function_identifier, node, project_id):
         with SessionManager() as db:
             if "project_id" in node:
                 code = GithubService.fetch_method_from_repo(node)
             code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
-            
+
             explanation = crud_utils.get_explanation_by_identifier(db, function_identifier, code_hash)
-            
+
             if explanation:
                 if explanation.project_id != project_id:
                     new_explanation = Explanation(
@@ -214,9 +214,9 @@ To help integration test the flow above:
                     project_id=project_id,
                 )
                 crud_utils.create_explanation(db, new_explanation)
-                
+
                 explanation = new_explanation
-        
+
             return explanation.explanation if explanation else None
 
     def _get_code_for_node(self, node):
@@ -335,9 +335,11 @@ To help integration test the flow above:
     async def generate_test_plan_for_endpoint(
         self, identifier: str, project_details: dict, preferences: dict = None
     ):  
+        to_be_mocked = ""
+        is_db_mocked = False
         if preferences is None:
             preferences = json.loads(EndpointManager(project_details["directory"]).get_preferences(identifier, project_details["id"]))
-        
+
         if preferences:
             to_be_mocked = preferences["entities_to_mock"]
             is_db_mocked = preferences["is_db_mocked"]

@@ -51,3 +51,4 @@ def get_paths_from_identifiers(identifiers, directory, project_id):
             grouped_by_filename[file] = []
         grouped_by_filename[file].append({"entryPoint": path, "identifier": entry_point})
     return grouped_by_filename
+

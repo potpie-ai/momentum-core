@@ -1,4 +1,4 @@
-version: '1.0'
+version: '3.8'
 
 services:
   postgres:
@@ -10,8 +10,6 @@ services:
       POSTGRES_DB: momentum
     ports:
       - "5432:5432"
-    volumes:
-      - ./data/momentum-srv-postgres:/var/lib/postgresql/data/
     networks:
       - app-network
     healthcheck:
@@ -19,6 +17,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: support@momentum.sh
+      PGADMIN_DEFAULT_PASSWORD: password
+    ports:
+      - 8080:80
+    networks:
+      - app-network
 
   neo4j:
     image: neo4j:latest
@@ -28,21 +38,6 @@ services:
     ports:
       - "7474:7474"
       - "7687:7687"
-    volumes:
-      - ./data/neo4j-data:/data
-    networks:
-      - app-network
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: vn.sh@outlook.com
-      PGADMIN_DEFAULT_PASSWORD: password
-    ports:
-      - 8080:80
-    volumes:
-      - ./data/pgadmin:/var/lib/pgadmin
     networks:
       - app-network
 
@@ -54,8 +49,6 @@ services:
       - MONGO_INITDB_DATABASE=momentum
     ports:
       - "27017:27017"
-    volumes:
-      - ./data/mongodb_data:/data/db
     networks:
       - app-network
 
@@ -64,38 +57,31 @@ services:
     container_name: redis_broker
     ports:
       - "6379:6379"
-    volumes:
-      - ./data/redis:/data
     networks:
       - app-network
 
   weaviate:
-    command:
-      - --host
-      - 0.0.0.0
-      - --port
-      - '8082'
-      - --scheme
-      - http
     image: cr.weaviate.io/semitechnologies/weaviate:1.25.7
+    container_name: weaviate
+    command: "--host 0.0.0.0 --port 8082 --scheme http"
     ports:
       - 8082:8082
       - 50051:50051
-    volumes:
-      - weaviate_data:/var/lib/weaviate
-    restart: on-failure:0
+    restart: on-failure
     environment:
       QUERY_DEFAULTS_LIMIT: 25
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
-      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
-      DEFAULT_VECTORIZER_MODULE: 'none'
-      ENABLE_MODULES: ''
-      CLUSTER_HOSTNAME: 'node1'
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      DEFAULT_VECTORIZER_MODULE: "none"
+      ENABLE_MODULES: ""
+      CLUSTER_HOSTNAME: "node1"
     networks:
       - app-network
 
   knowledge-graph:
-    build: ./knowledge_graph
+    build:
+      context: ./knowledge_graph
+    container_name: knowledge_graph
     ports:
       - "8081:8081"
     env_file:
@@ -104,7 +90,9 @@ services:
       - app-network
 
   momentum:
-    build: .
+    build:
+      context: .
+    container_name: momentum
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
     env_file:
@@ -116,16 +104,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      knowledge-graph:
+        condition: service_started
     networks:
       - app-network
-
-volumes:
-  postgres-data:
-  neo4j-data:
-  redis:
-  weaviate_data:
-  mongodb_data:
-    driver: local
 
 networks:
   app-network:

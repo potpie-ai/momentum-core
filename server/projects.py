@@ -7,14 +7,16 @@ from fastapi import HTTPException
 from datetime import datetime
 
 class ProjectManager:
-    def register_project(self, directory: str, project_name: str, repo_name: str, branch_name: str, user_id: str, commit_id: str, default: bool, project_id: int = None):
+    def register_project(self, directory: str, project_name: str, repo_name: str, branch_name: str, user_id: str, commit_id: str, default: bool,
+                         project_metadata, project_id: int = None):
         with SessionManager() as db:
             if project_id:
                 crud_utils.update_project(db, project_id, commit_id=commit_id)
                 message = f"Project '{project_id}' updated successfully."
             else:
-                project = Project(directory=directory, project_name=project_name, repo_name=repo_name, 
-                                     branch_name=branch_name, user_id=user_id, commit_id=commit_id, is_default=default)
+                project = Project(directory=directory, project_name=project_name, repo_name=repo_name,
+                                     branch_name=branch_name, user_id=user_id, commit_id=commit_id, is_default=default,
+                                  properties=project_metadata)
                 project = crud_utils.create_project(db, project)
                 message = f"Project '{project_name}' registered successfully."
                 project_id = project.id
@@ -95,6 +97,67 @@ class ProjectManager:
             else:
                 return None
 
+        except psycopg2.Error as e:
+            logging.error(f"project_id: {project_id}, get_project_from_db_by_id_and_user_id - An error occurred: {e}")
+
+        finally:
+            if "conn" in locals() and conn:
+                conn.close()
+
+    def get_first_project_from_db_by_repo_name_branch_name(self, repo_name, branch_name):
+        try:
+            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT project_name, directory, id , user_id
+                FROM projects 
+                WHERE repo_name = %s and branch_name = %s
+                ORDER BY id ASC
+            """,
+                (repo_name, branch_name),
+            )
+
+            project = cursor.fetchone()
+            if project:
+                return project
+            else:
+                return None
+
+        except psycopg2.Error as e:
+            logging.error(f"get_first_project_from_db_by_repo_name_branch_name - An error occurred: {e}")
+
+        finally:
+            if "conn" in locals() and conn:
+                conn.close()
+
+    def get_first_user_id_from_project_repo_name(self, repo_name):
+        try:
+            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT user_id
+                FROM projects 
+                WHERE repo_name = %s
+                ORDER BY id ASC
+            """,
+                (repo_name, )
+            )
+
+            project = cursor.fetchone()
+            if project:
+                return project
+            else:
+                return None
+
+        except psycopg2.Error as e:
+            logging.error(f"get_first_user_id_from_project_repo_name - An error occurred: {e}")
+
+        finally:
+            if "conn" in locals() and conn:
+                conn.close()
+
     def get_parsed_project_branches(self, repo_name: str = None, user_id: str = None, default: bool = None):
         with SessionManager() as db:
             query = db.query(Project).filter(Project.user_id == user_id)
@@ -110,9 +173,9 @@ class ProjectManager:
         with SessionManager() as db:
             try:
                 result = crud_utils.update_project(
-                    db, 
-                    project_id, 
-                    is_deleted=True, 
+                    db,
+                    project_id,
+                    is_deleted=True,
                     updated_at=datetime.utcnow(),
                     user_id=user_id
                 )
@@ -133,8 +196,8 @@ class ProjectManager:
         with SessionManager() as db:
             try:
                 result = crud_utils.update_project(
-                    db, 
-                    project_id, 
+                    db,
+                    project_id,
                     is_deleted=False,
                     user_id=user_id
                 )

@@ -29,14 +29,33 @@ def _parse_diff_detail(patch_details, repo_path):
 
 
 def extract_file_name(repo_name, branch_name, path):
-    pattern = re.escape(f"{repo_name}-{branch_name}") + r"-\w+\/(.+)"
+    try:
+        pattern = get_pattern(repo_name, branch_name)
 
-    match = re.search(pattern, path)
-    if match:
-        file_path = match.group(1)
-        return file_path
-    else:
+        match = re.search(pattern, path)
+        if match:
+            file_path = match.group(1)
+            return file_path
+        else:
+            return None
+    except ValueError as e:
+        logging.error(f"Exception {e}")
         return None
+    
+def get_pattern(repo_name, branch_name):
+    # Define regex patterns for POSIX (Linux/macOS) and Windows
+    posix_pattern = re.escape(f"{repo_name}-{branch_name}") + r"-\w+\/(.+)"
+    windows_pattern = re.escape(f"{repo_name}-{branch_name}") + r"-\w+\\(.+)"
+    
+    # Check the operating system
+    if os.name == 'posix':
+        pattern = posix_pattern
+    elif os.name == 'nt':
+        pattern = windows_pattern
+    else:
+        raise ValueError("Unsupported operating system")
+    
+    return pattern
 
 
 def _parse_functions_from_file(file_path, repo_details, branch_name):
@@ -81,8 +100,8 @@ def _find_changed_functions(changed_files, repo_path, repo_details, branch_name)
                     if not internal_path.startswith(os.sep):
                         internal_path = os.sep+internal_path
                     result.append(f"{internal_path}:{full_name}")
-        except FileNotFoundError:
-            logging.error(f"_find_changed_functions -> File not found: {file_path}")
+        except Exception as e:
+            logging.error(f"Exception {e}")
     return result
 
 

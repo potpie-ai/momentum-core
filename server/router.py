@@ -80,12 +80,16 @@ async def parse_directory(
     try:
         new_project = True
         if project_details is None:
-            dir_details, project_id = setup_project_directory(
+            dir_details, project_id, should_parse_repo = setup_project_directory(
                 owner, repo_name, branch_name, app_auth, repo, user_id, project_id
             )
-            await analyze_directory(dir_details, user_id, project_id)
-            new_project = True
-            message = "The project has been parsed successfully"
+            if should_parse_repo:
+                await analyze_directory(dir_details, user_id, project_id)
+                new_project = True
+                message = "The project has been parsed successfully"
+            else:
+                project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
+                message = "Repository doesn't consist of a language currently supported."
         else:
             dir_details = project_details.directory
             project_id = project_details.id
@@ -95,11 +99,17 @@ async def parse_directory(
                 message = "The project has been re-parsed successfully"
             if GithubService.check_is_commit_added(repo, project_details, branch_name):
                 reparse_cleanup(project_details, user_id)
-                dir_details, project_id = setup_project_directory(owner, repo_name,
+                dir_details, project_id, should_parse_repo = setup_project_directory(owner, repo_name,
                                                                   branch_name, app_auth, repo, user_id,
                                                                   project_id)
-                await analyze_directory(dir_details, user_id, project_id)
-                new_project = False
+                if should_parse_repo:
+                    await analyze_directory(dir_details, user_id, project_id)
+                    new_project = False
+                    message = "The project has been re-parsed successfully"
+                    project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
+                else:
+                    project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
+                    message = "Repository doesn't consist of a language currently supported."
             else:
                 return {"message": "No new commits have been added to the branch "
                                    "since the last parsing. The database is up to date.",
@@ -119,7 +129,6 @@ async def parse_directory(
         "size": repo.size / 1024,
         "new_project": new_project
     }
-    project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
     github.close()
     return {
         "message": message,
