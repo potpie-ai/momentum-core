@@ -162,7 +162,7 @@ async def handle_request(request, github_event, payload):
         state = json_payload.get("issue").get("state")
         comment = json_payload.get("comment").get("body")
         bot_name = os.environ["GITHUB_BOT_NAME"]
-        if state == "open" and "/plan" in comment.lower() and f"@{bot_name}" in comment.lower():
+        if state == "open" and "/plan" in comment.lower() and f"@{bot_name}" in comment.lower() and f"`@{bot_name}" not in comment.lower():
             await handle_comment_with_mention(json_payload, comment)
     elif github_event == "pull_request":
         if github_action == "opened" :
@@ -338,7 +338,8 @@ def parse_blast_radius_to_markdown(blast_radius):
         for endpoint in endpoints:
             entry_point = endpoint["entryPoint"]
             markdown_output += f"| {filename.replace("\\","/")} | {entry_point} |\n"
-    
+    bot_name = os.environ["GITHUB_BOT_NAME"]
+    markdown_output += f"\n Tag the app and use the /plan command with the name of the entry point to generate a Test Plan for it. Like: \n`@{bot_name} /plan  GET /end/point`"
     return markdown_output
 
 def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, installation_auth, base_branch
