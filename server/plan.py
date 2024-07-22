@@ -344,6 +344,8 @@ To help integration test the flow above:
     async def generate_test_plan_for_endpoint(
         self, identifier: str, project_details: list, preferences: dict = None 
     ):  
+        to_be_mocked = ""
+        is_db_mocked = False
         if preferences is None:
             preferences = EndpointManager(project_details[1]).get_preferences(identifier, project_details[2])
             if preferences is None:
@@ -351,8 +353,8 @@ To help integration test the flow above:
         
         if preferences:
             # Use the get method to safely access the keys
-            to_be_mocked = preferences.get("entities_to_mock")
-            is_db_mocked = preferences.get("is_db_mocked")
+            to_be_mocked = preferences.get("entities_to_mock") or ""
+            is_db_mocked = preferences.get("is_db_mocked") or False
         
 
         flow = get_flow(identifier, project_details[2])
