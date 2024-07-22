@@ -337,7 +337,7 @@ def parse_blast_radius_to_markdown(blast_radius):
         endpoints = blast_radius[filename]
         for endpoint in endpoints:
             entry_point = endpoint["entryPoint"]
-            markdown_output += f"| {filename} | {entry_point} |\n"
+            markdown_output += f"| {filename.replace("\\","/")} | {entry_point} |\n"
     
     return markdown_output
 
