@@ -171,20 +171,6 @@ To help integration test the flow above:
         else:
             return plan
 
-    async def create_temp_test_file(self, identifier, result):
-        projects = ProjectManager().list_projects()
-        temp_file_id = "".join(
-            random.choice(string.ascii_letters) for _ in range(8)
-        )
-        if not os.path.exists(f"{projects[0]['directory']}/tests"):
-            os.mkdir(f"{projects[0]['directory']}/tests")
-
-        filename = f"{projects[0]['directory']}/tests/test_{identifier.split(':')[-1]}_{temp_file_id}.py"
-
-        with open(filename, "w") as file:
-            # Write the string to the file
-            file.write(result)
-        return filename
 
 
     async def _get_explanation_for_function(self, function_identifier, node, project_id):
