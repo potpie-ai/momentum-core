@@ -16,6 +16,7 @@ from server.schemas import Project
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
 from server.utils.parse_helper import delete_folder
+from server.utils.model_helper import model_to_dict
 
 parser = get_parser("python")
 codebase_map = f"/.momentum/momentum.db"
@@ -987,38 +988,6 @@ def get_node(function_identifier, project_details):
 
 def get_node_by_id(node_id, project_id):
     return neo4j_graph.get_node_by_id(node_id, project_id)
-
-
-def model_to_dict(model, max_depth=1, current_depth=0):
-    if model is None or current_depth > max_depth:
-        return None
-
-    result = {}
-
-    try:
-        mapper = class_mapper(model.__class__)
-    except:
-        # If it's not a SQLAlchemy model class, return the object as is
-        return model
-
-    for key in mapper.column_attrs.keys():
-        result[key] = getattr(model, key)
-
-    # Handle relationships
-    for rel_name, rel_attr in mapper.relationships.items():
-        try:
-            related_obj = getattr(model, rel_name)
-            if related_obj is not None:
-                if isinstance(related_obj, list):
-                    result[rel_name] = [model_to_dict(item, max_depth, current_depth + 1) for item in related_obj if
-                                        item is not None]
-                else:
-                    result[rel_name] = model_to_dict(related_obj, max_depth, current_depth + 1)
-        except DetachedInstanceError:
-            # Skip this relationship if it's not loaded
-            pass
-
-    return result
 
 
 def get_values(repo_branch, project_manager, user_id):

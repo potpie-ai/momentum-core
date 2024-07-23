@@ -1,7 +1,7 @@
 from server.db.session import SessionManager
 from server.crud import crud_utils
 from server.models.repo_details import ProjectStatusEnum
-from server.parse import model_to_dict
+from server.utils.model_helper import model_to_dict
 from server.schemas import Project
 import logging
 from fastapi import HTTPException
