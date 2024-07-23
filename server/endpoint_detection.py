@@ -475,6 +475,7 @@ class EndpointManager:
                 if not endpoint:
                     endpoint = Endpoint(path=path, identifier=identifier, project_id=project_id)
                     db.add(endpoint)
+                    db.commit()
             for dependency in depends:
                 neo4j_graph.connect_nodes(
                     identifier, dependency, project_id, {"action": "calls"}

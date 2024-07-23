@@ -85,6 +85,7 @@ async def parse_directory(
                 await analyze_directory(dir_details, user_id, project_id)
                 new_project = True
                 message = "The project has been parsed successfully"
+                project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
             else:
                 project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
                 message = "Repository doesn't consist of a language currently supported."

@@ -338,7 +338,7 @@ To help integration test the flow above:
         to_be_mocked = ""
         is_db_mocked = False
         if preferences is None:
-            preferences = json.loads(EndpointManager(project_details["directory"]).get_preferences(identifier, project_details["id"]))
+            preferences = EndpointManager(project_details["directory"]).get_preferences(identifier, project_details["id"])
 
         if preferences:
             to_be_mocked = preferences["entities_to_mock"]
