@@ -337,7 +337,9 @@ def parse_blast_radius_to_markdown(blast_radius):
         endpoints = blast_radius[filename]
         for endpoint in endpoints:
             entry_point = endpoint["entryPoint"]
-            markdown_output += f"| {filename.replace("\\","/")} | {entry_point} |\n"
+            filename = filename.replace("\\","/")
+            markdown_output += f"| {filename} | {entry_point} |\n"
+
     bot_name = os.environ["GITHUB_BOT_NAME"]
     markdown_output += f"\n Tag the app and use the /plan command with the name of the entry point to generate a Test Plan for it. Like: \n`@{bot_name} /plan  GET /end/point`"
     return markdown_output
