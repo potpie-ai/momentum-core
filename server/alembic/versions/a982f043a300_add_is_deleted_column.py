@@ -1,7 +1,7 @@
 """Add is_deleted column
 
 Revision ID: a982f043a300
-Revises: cbd8239ae1b7
+Revises: 754403255064
 Create Date: 2024-06-27 16:20:47.697478
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a982f043a300'
-down_revision: Union[str, None] = '0d03ae5e3938'
+down_revision: Union[str, None] = '754403255064'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

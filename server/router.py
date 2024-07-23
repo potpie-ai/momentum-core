@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import traceback
 from typing import List, Optional
 
@@ -13,7 +12,6 @@ from fastapi import Depends, HTTPException
 from server.utils.APIRouter import APIRouter
 from fastapi.requests import Request
 from github import Github
-from github.GithubException import UnknownObjectException
 from server.models.repo_details import (
     PreferenceDetails,
     ProjectStatusEnum,
@@ -25,7 +23,7 @@ from server.parse import (
     get_flow,
     get_graphical_flow_structure,
     get_node,
-    get_values, parse_config,
+    get_values,
 )
 from server.plan import Plan
 from server.projects import ProjectManager
@@ -34,7 +32,7 @@ from pydantic import BaseModel
 from server.blast_radius_detection import get_paths_from_identifiers
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
-from server.utils.parse_helper import setup_project_directory, delete_folder, reparse_cleanup
+from server.utils.parse_helper import setup_project_directory, reparse_cleanup
 from server.dependencies import Dependencies
 from server.auth import check_auth
 from server.test_agent.crew import GenerateTest

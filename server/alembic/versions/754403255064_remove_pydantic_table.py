@@ -1,7 +1,7 @@
 """remove pydantic table
 
 Revision ID: 754403255064
-Revises: cbd8239ae1b7
+Revises: fbc3da27ae0c
 Create Date: 2024-07-05 14:54:38.136079
 
 """

@@ -6,7 +6,6 @@ import os
 import re
 
 import psycopg2
-import toml
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.exc import DetachedInstanceError
 from tree_sitter_languages import get_language, get_parser
@@ -19,7 +18,6 @@ from server.utils.graph_db_helper import Neo4jGraph
 from server.utils.parse_helper import delete_folder
 
 parser = get_parser("python")
-parser2 = get_parser("toml")
 codebase_map = f"/.momentum/momentum.db"
 neo4j_graph = Neo4jGraph()
 
