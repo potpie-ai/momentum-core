@@ -93,7 +93,7 @@ async def parse_repos(payload, request: Request):
                                 project_id, ProjectStatusEnum.ERROR
                             )
                     else:
-                        project_id = project_details[2]
+                        project_id = project_details["id"]
                         if is_deleted:
                             project_manager.restore_all_project(repo_branch.repo_name, user_id)
                         if GithubService.check_is_commit_added(repo_details, project_details, branch_name):
@@ -117,7 +117,7 @@ async def parse_repos(payload, request: Request):
             if project_details is not None:
                 owner = repo_details.owner.login
                 reparse_cleanup(project_details, user_id)
-                project_id = project_details[2]
+                project_id = project_details["id"]
                 dir_details, project_id, should_parse_repo = setup_project_directory(
                     owner,
                     repo_name,
@@ -194,7 +194,7 @@ async def handle_update_pr(payload):
     project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
 
     #Get blast radius using project id and base branch name
-    blast_radius = get_blast_radius_details(project_details[2], repo_name, branch_name, installation_auth, base_branch_name)
+    blast_radius = get_blast_radius_details(project_details["id"], repo_name, branch_name, installation_auth, base_branch_name)
 
     #Parsing the blast radius as a markdown table
     blast_radius = parse_blast_radius_to_markdown(blast_radius)
@@ -239,7 +239,7 @@ async def handle_open_pr(payload):
             project_id, ProjectStatusEnum.READY
         )
     else:
-        project_id = project_details[2]
+        project_id = project_details["id"]
         if GithubService.check_is_commit_added(repo_details, project_details, branch_name):
             reparse_cleanup(project_details, user_id)
             dir_details, project_id, _ = setup_project_directory(owner, repo_name.split("/")[-1],
@@ -259,7 +259,7 @@ async def handle_open_pr(payload):
     #Commenting on PR with blast radius info.
     if(len(blast_radius)> 0):
         GithubService.comment_on_pr(repo_name, pr_number, blast_radius, installation_auth)
-    
+
 async def handle_comment_with_mention(payload, comment):
     #Parsing payload to fetch the necessary details
     repo_name = payload['repository']['full_name']
@@ -275,16 +275,16 @@ async def handle_comment_with_mention(payload, comment):
         #Fetching project details & userid from database
         project_details = project_manager.get_first_project_from_db_by_repo_name_branch_name(repo_name, branch_name)
         endpoint_path = " ".join(comment_list[comment_list.index("/plan") + 1:])
-        user_id = project_details[3]
-        
+        user_id = project_details["user_id"]
+
         identifier = EndpointManager(
-            project_details[1]
-        ).get_endpoint_id_from_path(endpoint_path, project_details[2])
+            project_details["directory"]
+        ).get_endpoint_id_from_path(endpoint_path, project_details["id"])
 
         #Fetch test plan for specified identifier
         test_plan = EndpointManager(
-            project_details[1]
-        ).get_test_plan(identifier, project_details[2])
+            project_details["directory"]
+        ).get_test_plan(identifier, project_details["id"])
         if test_plan is None:
             try:
                 test_plan = await Plan(
@@ -292,18 +292,18 @@ async def handle_comment_with_mention(payload, comment):
                 ).generate_test_plan_for_endpoint(identifier, project_details)
             except Exception as e:
                 raise ValueError(f"An error occurred while generating test_plan: {e}")
-            
+
         #Commenting on PR with test plan info.
         if test_plan != {}:
             test_plan_comment = f"Test plan for {endpoint_path}:\n" + test_plan_to_markdown(test_plan)
             test_plan_comment += "\nHead over to the [momentum app](https://app.momentum.sh/) to visualise and test your changes"
             pull_request.create_issue_comment(test_plan_comment)
-    
+
     except Exception as e:
         logging.error(f"An error occurred while generating test_plan: {e}")
-    
+
     finally:
-        github.close()       
+        github.close()
 
 def test_plan_to_markdown(test_plan):
     # Extract the keys from the dictionary
@@ -332,7 +332,7 @@ def parse_blast_radius_to_markdown(blast_radius):
     markdown_output += "\n## Blast Radius:\n"
     markdown_output += "\n| Filename | Entry Point |\n"
     markdown_output += "| --- | --- |\n"
-    
+
     for filename in blast_radius:
         endpoints = blast_radius[filename]
         for endpoint in endpoints:
@@ -376,4 +376,4 @@ def get_blast_radius_details(project_id: int, repo_name: str, branch_name: str, 
             return []
     finally:
         github.close()
-        
+

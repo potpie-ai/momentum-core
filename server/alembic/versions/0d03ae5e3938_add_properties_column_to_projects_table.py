@@ -1,7 +1,7 @@
 """add properties column to projects table
 
 Revision ID: 0d03ae5e3938
-Revises: cbd8239ae1b7
+Revises: a982f043a300
 Create Date: 2024-07-08 15:24:29.258881
 
 """

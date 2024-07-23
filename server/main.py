@@ -42,8 +42,7 @@ if os.getenv("ENV") == "production":
         ],
     )
 else:
-    print("Non Production Environment, Posthog & Sentry Disabled")
-
+    logging.info("Non Production Environment, Sentry Disabled")
 
 origins = ["*"]
 app.add_middleware(

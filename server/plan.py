@@ -11,7 +11,9 @@ import string
 import subprocess
 from typing import List
 
-import psycopg2
+from server.db.session import SessionManager
+from server.schemas import Project, Endpoint, Explanation, Pydantic
+from server.crud import crud_utils
 from fastapi import (
     HTTPException,  # used for detecting whether generated Python code is valid
 )
@@ -169,64 +171,39 @@ To help integration test the flow above:
         else:
             return plan
 
-    async def create_temp_test_file(self, identifier, result):
-        projects = ProjectManager().list_projects()
-        temp_file_id = "".join(
-            random.choice(string.ascii_letters) for _ in range(8)
-        )
-        if not os.path.exists(f"{projects[0]['directory']}/tests"):
-            os.mkdir(f"{projects[0]['directory']}/tests")
 
-        filename = f"{projects[0]['directory']}/tests/test_{identifier.split(':')[-1]}_{temp_file_id}.py"
 
-        with open(filename, "w") as file:
-            # Write the string to the file
-            file.write(result)
-        return filename
+    async def _get_explanation_for_function(self, function_identifier, node, project_id):
+        with SessionManager() as db:
+            if "project_id" in node:
+                code = GithubService.fetch_method_from_repo(node)
+            code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
 
-    async def _get_explanation_for_function(
-        self, function_identifier, node, project_id
-    ):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        if "project_id" in node:
-            code = GithubService.fetch_method_from_repo(node)
-            code_hash = hashlib.sha256(
-                code.encode("utf-8")
-            ).hexdigest()
-            cursor.execute(
-                "SELECT explanation, project_id FROM explanation WHERE"
-                " identifier=%s AND hash=%s",
-                (function_identifier, code_hash),
-            )
-            explanation_row = cursor.fetchone()
+            explanation = crud_utils.get_explanation_by_identifier(db, function_identifier, code_hash)
 
-            if explanation_row:
-                explanation = explanation_row[0]
-                if explanation_row[1] != project_id:
-                    cursor.execute(
-                        "INSERT INTO explanation (identifier, hash,"
-                        " explanation, project_id) VALUES (%s, %s, %s, %s)",
-                        (
-                            function_identifier,
-                            code_hash,
-                            explanation,
-                            project_id,
-                        ),
+            if explanation:
+                if explanation.project_id != project_id:
+                    new_explanation = Explanation(
+                        identifier=function_identifier,
+                        hash=code_hash,
+                        explanation=explanation.explanation,
+                        project_id=project_id,
                     )
+                    crud_utils.create_explanation(db, new_explanation)
             else:
-                code = GithubService.fetch_method_from_repo(
-                    node
+                code = GithubService.fetch_method_from_repo(node)
+                explanation_text = await self.explanation_from_function(code)
+                new_explanation = Explanation(
+                    identifier=function_identifier,
+                    hash=code_hash,
+                    explanation=explanation_text,
+                    project_id=project_id,
                 )
-                explanation = await self.explanation_from_function(code)
-                cursor.execute(
-                    "INSERT INTO explanation (identifier, hash, explanation,"
-                    " project_id) VALUES (%s, %s, %s, %s)",
-                    (function_identifier, code_hash, explanation, project_id),
-                )
-                conn.commit()
+                crud_utils.create_explanation(db, new_explanation)
 
-        return explanation
+                explanation = new_explanation
+
+            return explanation.explanation if explanation else None
 
     def _get_code_for_node(self, node):
         return GithubService.fetch_method_from_repo(node)
@@ -342,24 +319,20 @@ To help integration test the flow above:
         return code
 
     async def generate_test_plan_for_endpoint(
-        self, identifier: str, project_details: list, preferences: dict = None 
+        self, identifier: str, project_details: dict, preferences: dict = None
     ):  
         to_be_mocked = ""
         is_db_mocked = False
         if preferences is None:
-            preferences = EndpointManager(project_details[1]).get_preferences(identifier, project_details[2])
-            if preferences is None:
-                preferences = {}
-        
-        if preferences:
-            # Use the get method to safely access the keys
-            to_be_mocked = preferences.get("entities_to_mock") or ""
-            is_db_mocked = preferences.get("is_db_mocked") or False
-        
+            preferences = EndpointManager(project_details["directory"]).get_preferences(identifier, project_details["id"])
 
-        flow = get_flow(identifier, project_details[2])
+        if preferences:
+            to_be_mocked = preferences["entities_to_mock"]
+            is_db_mocked = preferences["is_db_mocked"]
+        
+        flow = get_flow(identifier, project_details["id"])
         graph = get_graphical_flow_structure(
-            identifier, project_details[1], project_details[2]
+            identifier, project_details["directory"], project_details["id"]
         )
         if len(flow) == 0:
             raise HTTPException(
@@ -375,7 +348,7 @@ To help integration test the flow above:
                 + self._get_code_for_node(node)
                 + "\n explanation: \n"
                 + await self._get_explanation_for_function(
-                    function, node, project_details[2]
+                    function, node, project_details["id"]
                 )
             )
         context = (
@@ -387,8 +360,8 @@ To help integration test the flow above:
         test_plan = self._extract_json(test_plan.content)
         plan_obj = TestPlan(**test_plan)
         (
-            EndpointManager( project_details[1]).update_test_plan(
-                identifier, plan_obj.model_dump_json(), project_details[2]
+            EndpointManager( project_details["directory"]).update_test_plan(
+                identifier, plan_obj.model_dump_json(), project_details["id"]
             )
         )
         return test_plan

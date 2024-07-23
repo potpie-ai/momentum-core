@@ -1,7 +1,7 @@
 """remove pydantic table
 
 Revision ID: 754403255064
-Revises: cbd8239ae1b7
+Revises: fbc3da27ae0c
 Create Date: 2024-07-05 14:54:38.136079
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '754403255064'
-down_revision: Union[str, None] = 'cbd8239ae1b7'
+down_revision: Union[str, None] = 'fbc3da27ae0c'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

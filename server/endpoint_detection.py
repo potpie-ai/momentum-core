@@ -4,13 +4,13 @@ import os
 import re
 from pathlib import Path
 from typing import Optional
-from server.utils.config import neo4j_config
 import os
+from server.db.session import SessionManager
+from server.schemas import Project, Endpoint, Explanation, Pydantic
 import logging
 
-import psycopg2 
 from tree_sitter_languages import get_language, get_parser
-
+from fastapi import HTTPException
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
 from server.celery_worker import celery_worker
@@ -445,45 +445,42 @@ class EndpointManager:
         return function_name, parameters, start, end, text
 
     async def analyse_endpoints(self, project_id, user_id):
-        
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        detected_endpoints = []
-        detected_endpoints = self.identify_django_endpoints(
+        with SessionManager() as db:
+            detected_endpoints = []
+            detected_endpoints = self.identify_django_endpoints(
             self.directory, project_id
         )
 
-        file_paths = self.get_python_filepaths(self.directory)
-        for file_path in file_paths:
-            with open(file_path, "r", encoding="utf-8") as file:
-                source_code = file.read()
-                decorator_endpoints = self.find_endpoints_from_decorator(
-                    source_code, file_path, project_id
+            file_paths = self.get_python_filepaths(self.directory)
+            for file_path in file_paths:
+                with open(file_path, "r", encoding="utf-8") as file:
+                    source_code = file.read()
+                    decorator_endpoints = self.find_endpoints_from_decorator(
+                        source_code, file_path, project_id
+                    )
+                    if decorator_endpoints:
+                        detected_endpoints.extend(decorator_endpoints)
+            for path, identifier in detected_endpoints:
+                router_info = self.router_prefix_file_mapping.get(
+                    identifier.split(":")[0], {}
                 )
-                if decorator_endpoints:
-                    detected_endpoints.extend(decorator_endpoints)
-        for path, identifier in detected_endpoints:
-            router_info = self.router_prefix_file_mapping.get(
-                identifier.split(":")[0], {}
-            )
-            prefix = router_info.get("prefix", None)
-            depends = router_info.get("depends", [])
-            path = self.get_qualified_endpoint_name(path, prefix)
-            try:
-                cursor.execute(
-                    "INSERT INTO endpoints (path, identifier, project_id)"
-                    " VALUES (%s, %s, %s)",
-                    (path, identifier, project_id),
-                )
-                conn.commit()
-            except psycopg2.IntegrityError:
-                conn.rollback()
+                prefix = router_info.get("prefix", None)
+                depends = router_info.get("depends", [])
+                path = self.get_qualified_endpoint_name(path, prefix)
+                endpoint = db.query(Endpoint).filter(
+                    Endpoint.path == path,
+                    Endpoint.identifier == identifier,
+                    Endpoint.project_id == project_id
+                ).first()
+                if not endpoint:
+                    endpoint = Endpoint(path=path, identifier=identifier, project_id=project_id)
+                    db.add(endpoint)
+                    db.commit()
             for dependency in depends:
                 neo4j_graph.connect_nodes(
                     identifier, dependency, project_id, {"action": "calls"}
                 )
 
-        conn.close()
         celery_worker.send_task(
                  'knowledgegraph.task.infer_flows',
                  kwargs={
@@ -506,165 +503,88 @@ class EndpointManager:
         )
 
     def display_endpoints(self, project_id):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        paths = []
-        try:
-            cursor.execute(
-                "SELECT path, identifier FROM endpoints where project_id=%s",
-                (project_id,),
-            )
-            endpoints = cursor.fetchall()
+        with SessionManager() as db:
+            endpoints = db.query(Endpoint).filter(Endpoint.project_id == project_id).all()
             paths = {}
             for endpoint in endpoints:
-                filename = endpoint[1].split(":")[0]
+                filename = endpoint.identifier.split(":")[0]
                 if filename not in paths:
                     paths[filename] = []
                 paths[filename].append(
-                    {"entryPoint": endpoint[0], "identifier": endpoint[1]}
+                    {"entryPoint": endpoint.path, "identifier": endpoint.identifier}
                 )
-
-        except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, display_endpoints -> psycopg2.Error : {e}")
-        finally:
-            conn.close()
-        return paths
+            return paths
 
     def delete_endpoints(self, project_id, user_id):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "DELETE FROM endpoints WHERE project_id = %s AND project_id IN (SELECT id FROM projects WHERE user_id = %s)",
-                (project_id, user_id))
-            conn.commit()
-            logging.info(f"project_id: ,{project_id}, Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
-        except psycopg2.Error as e:
-            logging.info(f"project_id: ,{project_id}, An error occurred while deleting endpoints: {e}")
-        finally:
-            conn.close()
+        with SessionManager() as db:
+            db.query(Endpoint).filter(
+                Endpoint.project_id == project_id,
+                Endpoint.project_id.in_(
+                    db.query(Project.id).filter(Project.user_id == user_id)
+                )
+            ).delete()
+            db.commit()
+        logging.info(f"Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
 
     def update_test_plan(self, identifier, plan, project_id):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        try:
-            query = (
-                "UPDATE endpoints SET test_plan = %s WHERE identifier = %s and"
-                " project_id=%s"
-            )
-            params = (plan, identifier, project_id)
-            cursor.execute(query, params)
-        except psycopg2.IntegrityError as e:
-            logging.error(f"project_id: {project_id}, error -> {e}")
-
-        conn.commit()
-        conn.close()
+        with SessionManager() as db:
+            endpoint = db.query(Endpoint).filter(
+                Endpoint.identifier == identifier,
+                Endpoint.project_id == project_id
+            ).first()
+            if endpoint:
+                endpoint.test_plan = plan
+                db.commit()
+            else:
+                raise HTTPException(status_code=404, detail="Endpoint not found")
 
     def update_test_preferences(self, identifier, preferences, project_id):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        try:
-            query = (
-                "UPDATE endpoints SET preferences = %s WHERE identifier = %s"
-                " and project_id=%s"
-            )
-            params = (json.dumps(preferences), identifier, project_id)
-            cursor.execute(query, params)
-        except psycopg2.IntegrityError as e:
-            logging.error(f"project_id: {project_id}, error ",e)
-
-        conn.commit()
-        conn.close()
+        with SessionManager() as db:
+            endpoint = db.query(Endpoint).filter(
+                Endpoint.identifier == identifier,
+                Endpoint.project_id == project_id
+            ).first()
+            if endpoint:
+                endpoint.preferences = json.dumps(preferences)
+                db.commit()
+            else:
+                raise HTTPException(status_code=404, detail="Endpoint not found")
 
     def get_test_plan(self, identifier, project_id):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        try:
-            query = (
-                "SELECT test_plan FROM endpoints WHERE identifier = %s and"
-                " project_id = %s"
-            )
-            cursor.execute(
-                query,
-                (
-                    identifier,
-                    project_id,
-                ),
-            )
-            row = cursor.fetchone()
-            if row[0]:
-                return json.loads(
-                    row[0]
-                )  # Deserialize the test plan back into a Python dictionary
+        with SessionManager() as db:
+            endpoint = db.query(Endpoint).filter(
+                Endpoint.identifier == identifier,
+                Endpoint.project_id == project_id
+            ).first()
+            if endpoint and endpoint.test_plan:
+                return json.loads(endpoint.test_plan)
             else:
-                return None  # No test plan found for the given identifier
-        except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, Postgres error: {e}")
-            return None
-        finally:
-            conn.close()
+                return None
 
     def get_preferences(self, identifier, project_id):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        try:
-            query = (
-                "SELECT preferences FROM endpoints WHERE identifier = %s and"
-                " project_id = %s"
-            )
-            cursor.execute(
-                query,
-                (
-                    identifier,
-                    project_id,
-                ),
-            )
-            row = cursor.fetchone()
-            if row and row[0]:
-                return json.loads(
-                    row[0]
-                )  # Deserialize the test plan back into a Python dictionary
+        with SessionManager() as db:
+            endpoint = db.query(Endpoint).filter(
+                Endpoint.identifier == identifier,
+                Endpoint.project_id == project_id
+            ).first()
+            if endpoint and endpoint.preferences:
+                return json.loads(endpoint.preferences)
             else:
-                return None  # No test plan found for the given identifier
-        except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, Postgres error: {e}")
-            return None
-        finally:
-            conn.close()
+                return None
 
     def get_test_plan_preferences(self, identifier, project_id):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        cursor = conn.cursor()
-        test_plan = None
-        preferences = None
-        try:
-            query = (
-                "SELECT test_plan, preferences FROM endpoints WHERE identifier"
-                " = %s and project_id = %s"
-            )
-            cursor.execute(query, (identifier, project_id))
-            row = cursor.fetchone()
-            if row and row[0]:
-                test_plan = json.loads(
-                    row[0]
-                )  # Deserialize the test plan back into a Python dictionary
+        with SessionManager() as db:
+            endpoint = db.query(Endpoint).filter(
+                Endpoint.identifier == identifier,
+                Endpoint.project_id == project_id
+            ).first()
+            if endpoint:
+                test_plan = json.loads(endpoint.test_plan) if endpoint.test_plan else None
+                preferences = json.loads(endpoint.preferences) if endpoint.preferences else None
+                return test_plan, preferences
             else:
-                test_plan = None  # No test plan found for the given identifier
+                return None, None
 
-            if row and row[1]:
-                preferences = json.loads(
-                    row[1]
-                )  # Deserialize the test plan back into a Python dictionary
-            else:
-                preferences = (
-                    None  # No test plan found for the given identifier
-                )
-        except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, Postgres error: {e}")
-            return None, None
-        finally:
-            conn.close()
-        return test_plan, preferences
 
     # graph database changes
     def get_node(self, function_identifier, project_id):
@@ -1011,18 +931,12 @@ class EndpointManager:
             )
 
     def get_endpoint_id_from_path(self, endpoint_path, project_id):
-        conn_endpoints = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        endpoints_cursor = conn_endpoints.cursor()
-
-        query = """
-        SELECT identifier FROM endpoints WHERE path = %s AND project_id = %s
-        """
-        endpoints_cursor.execute(query, (endpoint_path, project_id))
-        result = endpoints_cursor.fetchone()
-
-        conn_endpoints.close()
-
-        if result:
-            return result[0]
+        with SessionManager() as db:
+            endpoint = db.query(Endpoint).filter(
+                Endpoint.path == endpoint_path,
+                Endpoint.project_id == project_id
+            ).first()
+        if endpoint:
+            return endpoint
         else:
             return None

@@ -1,5 +1,5 @@
+import json
 import logging
-import os
 import traceback
 from typing import List, Optional
 
@@ -12,7 +12,6 @@ from fastapi import Depends, HTTPException
 from server.utils.APIRouter import APIRouter
 from fastapi.requests import Request
 from github import Github
-from github.GithubException import UnknownObjectException
 from server.models.repo_details import (
     PreferenceDetails,
     ProjectStatusEnum,
@@ -33,7 +32,7 @@ from pydantic import BaseModel
 from server.blast_radius_detection import get_paths_from_identifiers
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
-from server.utils.parse_helper import setup_project_directory, delete_folder, reparse_cleanup
+from server.utils.parse_helper import setup_project_directory, reparse_cleanup
 from server.dependencies import Dependencies
 from server.auth import check_auth
 from server.test_agent.crew import GenerateTest
@@ -51,12 +50,12 @@ neo4j_graph = Neo4jGraph()
 
 @api_router.post("/parse")
 async def parse_directory(
-    request: Request, repo_branch: RepoDetails, user=Depends(check_auth)
+        request: Request, repo_branch: RepoDetails, user=Depends(check_auth)
 ):
     dir_details = ""
 
     response, auth, owner = GithubService.get_github_repo_details(
-      repo_branch.repo_name
+        repo_branch.repo_name
     )
     if response.status_code != 200:
         raise HTTPException(
@@ -86,12 +85,13 @@ async def parse_directory(
                 await analyze_directory(dir_details, user_id, project_id)
                 new_project = True
                 message = "The project has been parsed successfully"
+                project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
             else:
                 project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
                 message = "Repository doesn't consist of a language currently supported."
         else:
-            dir_details = project_details[1]
-            project_id = project_details[2]
+            dir_details = project_details["directory"]
+            project_id = project_details["id"]
             if is_deleted:
                 message = project_manager.restore_project(project_id, user_id)
             else:
@@ -143,8 +143,8 @@ def get_endpoints(request: Request, project_id: int, user=Depends(check_auth)):
     )
     if project_details is not None:
         endpoint_details = EndpointManager(
-             project_details[1]
-        ).display_endpoints(project_details[2])
+            project_details["directory"]
+        ).display_endpoints(project_details["id"])
         request.state.additional_data = {
             "number_of_endpoints": sum(len(endpoint_details[filename]) for filename in endpoint_details)
         }
@@ -157,14 +157,15 @@ def get_endpoints(request: Request, project_id: int, user=Depends(check_auth)):
 
 @api_router.get("/endpoints/blast")
 def get_blast_radius_details(
-  request: Request, project_id: int, base_branch: Optional[str] = "master", user=Depends(check_auth)
+        request: Request, project_id: int, base_branch: Optional[str] = "master", user=Depends(check_auth)
 ):
     global patches_dict, repo
+    patches_dict = {}
     user_id = user["user_id"]
     project_details = project_manager.get_project_repo_details_from_db(project_id, user_id)
     if project_details is not None:
-        repo_name = project_details[3]
-        branch_name = project_details[4]
+        repo_name = project_details["repo_name"]
+        branch_name = project_details["branch_name"]
         response, auth, owner = GithubService.get_github_repo_details(repo_name)
         app_auth = auth.get_installation_auth(response.json()['id'])
         github = Github(auth=app_auth)
@@ -184,9 +185,8 @@ def get_blast_radius_details(
         except Exception as exp:
             raise HTTPException(status_code=400, detail="Repository not found")
         finally:
-            repo_name_without_org = repo_name.split('/')[-1]
             if project_details is not None:
-                directory = project_details[1]
+                directory = project_details["directory"]
                 identifiers = []
                 try:
                     identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
@@ -199,7 +199,7 @@ def get_blast_radius_details(
                     github.close()
                     return []
                 paths = get_paths_from_identifiers(
-                  identifiers, directory, project_details[2]
+                    identifiers, directory, project_details["id"]
                 )
                 github.close()
                 return paths
@@ -209,7 +209,7 @@ def get_blast_radius_details(
 
 @api_router.get("/endpoints/flow/graph")
 def get_flow_graph(
-    project_id: int, endpoint_id: str, user=Depends(check_auth)
+        project_id: int, endpoint_id: str, user=Depends(check_auth)
 ):
     user_id = user["user_id"]
     project_details = project_manager.get_project_from_db_by_id_and_user_id(
@@ -217,7 +217,7 @@ def get_flow_graph(
     )
     if project_details is not None:
         graph_structure = get_graphical_flow_structure(
-            endpoint_id, project_details[1], project_details[2]
+            endpoint_id, project_details["directory"], project_details["id"]
         )
         return graph_structure
     else:
@@ -226,17 +226,16 @@ def get_flow_graph(
         )
 
 
-
 @api_router.get("/endpoints/dependencies")
 def get_dependencies(
-    project_id: int, endpoint_id: str, user=Depends(check_auth)
+        project_id: int, endpoint_id: str, user=Depends(check_auth)
 ):
     user_id = user["user_id"]
     project_details = project_manager.get_project_from_db_by_id_and_user_id(
         project_id, user_id
     )
     if project_details is not None:
-        flow = get_flow(endpoint_id, project_details[2])
+        flow = get_flow(endpoint_id, project_details["id"])
         return [x.split(":")[1] for x in flow if x != endpoint_id]
     else:
         return HTTPException(
@@ -246,7 +245,7 @@ def get_dependencies(
 
 @api_router.get("/endpoints/dependencies/more")
 async def get_more_dependencies_ai(
-    project_id: int, endpoint_id: str, user=Depends(check_auth)
+        project_id: int, endpoint_id: str, user=Depends(check_auth)
 ):
     user_id = user["user_id"]
     project_details = project_manager.get_project_from_db_by_id_and_user_id(
@@ -283,7 +282,6 @@ class TestPlan(BaseModel):
     edge_case: List[str]
 
 
-
 @api_router.put("/test/plan")
 def set_plan(test_plan: TestPlanDetails, user=Depends(check_auth)):
     identifier = test_plan.identifier
@@ -292,14 +290,14 @@ def set_plan(test_plan: TestPlanDetails, user=Depends(check_auth)):
         project_id, user["user_id"]
     )
     if project_details is not None:
-        directory = project_details[1]
+        directory = project_details["directory"]
         if test_plan:
             updated_test_plan = EndpointManager(
-                 directory
+                directory
             ).update_test_plan(
                 identifier,
                 test_plan.plan.model_dump_json(),
-                project_details[2],
+                project_details["id"],
             )
             return updated_test_plan
         else:
@@ -321,9 +319,9 @@ def set_preferences(preference: PreferenceDetails, user=Depends(check_auth)):
         preference = preference.preference
         if preference and preference != {}:
             return EndpointManager(
-                 project_details[1]
+                project_details["directory"]
             ).update_test_preferences(
-                identifier, preference, project_details[2]
+                identifier, preference, project_details["id"]
             )
         else:
             raise HTTPException(
@@ -337,7 +335,7 @@ def set_preferences(preference: PreferenceDetails, user=Depends(check_auth)):
 
 @api_router.get("/test/plan")
 async def get_test_plan(
-    project_id: int, identifier: str, user=Depends(check_auth)
+        project_id: int, identifier: str, user=Depends(check_auth)
 ):
     user_id = user["user_id"]
     project_details = project_manager.get_project_from_db_by_id_and_user_id(
@@ -345,8 +343,8 @@ async def get_test_plan(
     )
     if project_details is not None:
         test_plan = EndpointManager(
-             project_details[1]
-        ).get_test_plan(identifier, project_details[2])
+            project_details["directory"]
+        ).get_test_plan(identifier, project_details["id"])
         if test_plan is None:
             test_plan = await Plan(
                 user["user_id"]
@@ -356,7 +354,7 @@ async def get_test_plan(
 
 @api_router.get("/endpoints/preference")
 async def get_test_preferences(
-    project_id: int, identifier: str, user=Depends(check_auth)
+        project_id: int, identifier: str, user=Depends(check_auth)
 ):
     user_id = user["user_id"]
 
@@ -365,8 +363,8 @@ async def get_test_preferences(
     )
     if project_details is not None:
         preference = EndpointManager(
-             project_details[1]
-        ).get_preferences(identifier, project_details[2])
+            project_details["directory"]
+        ).get_preferences(identifier, project_details["id"])
         return preference
     else:
         raise HTTPException(
@@ -374,13 +372,12 @@ async def get_test_preferences(
         )
 
 
-
 @api_router.get("/test/generate")
 async def generate_test(
-    identifier: str,
-    endpoint_path: str,
-    project_id: int,
-    user=Depends(check_auth),
+        identifier: str,
+        endpoint_path: str,
+        project_id: int,
+        user=Depends(check_auth),
 ):
     user_id = user["user_id"]
     test_max_count = 200 if use_test_details_manager.is_pro_plan(user_id) else 50
@@ -390,8 +387,8 @@ async def generate_test(
             user_id
         )
         if project_details is not None:
-            project_dir = project_details[1]
-            project_id = project_details[2]
+            project_dir = project_details["directory"]
+            project_id = project_details["id"]
             test_plan, preferences = EndpointManager(
                 project_dir
             ).get_test_plan_preferences(identifier, project_id)

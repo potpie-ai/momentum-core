@@ -1,488 +1,221 @@
+from server.db.session import SessionManager
+from server.crud import crud_utils
+from server.models.repo_details import ProjectStatusEnum
+from server.utils.model_helper import model_to_dict
+from server.schemas import Project
 import logging
-
-import psycopg2
-import os
-
 from fastapi import HTTPException
-
-from server.utils.user_service import initialize_db
-
+from datetime import datetime
 
 class ProjectManager:
-
-    def _create_table(self):
-        initialize_db()
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-
-        try:
-
-            cursor = conn.cursor()
-            cursor.execute("""CREATE TABLE IF NOT EXISTS projects (
-                            id SERIAL PRIMARY KEY,
-                            directory TEXT UNIQUE,
-                            is_default BOOLEAN DEFAULT FALSE, 
-                            project_name TEXT,
-                            repo_name TEXT, 
-                            branch_name TEXT,
-                            user_id VARCHAR(255) NOT NULL,
-                            commit_id VARCHAR(255), 
-                            status VARCHAR(255) DEFAULT 'created',
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            FOREIGN KEY (user_id) REFERENCES users(uid) ON DELETE CASCADE,
-                            CHECK (status IN ('created', 'ready', 'error'))
-                            );""")
-            conn.commit()
-        except psycopg2.Error as e:
-            logging.error(f"An error occurred: in _create_table in ProjectManager, error: {e}")
-        finally:
-            conn.close()
-
-    def register_project(self, directory, project_name, repo_name, branch_name, user_id, commit_id, default: bool,
-                         project_metadata, project_id=None):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            message = ""
+    def register_project(self, directory: str, project_name: str, repo_name: str, branch_name: str, user_id: str, commit_id: str, default: bool,
+                         project_metadata, project_id: int = None):
+        with SessionManager() as db:
             if project_id:
-                cursor.execute('''
-                    UPDATE projects
-                    SET commit_id = %s, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s AND user_id = %s
-                    RETURNING id
-                ''', (commit_id, project_id, user_id))
+                crud_utils.update_project(db, project_id, commit_id=commit_id)
                 message = f"Project '{project_id}' updated successfully."
             else:
-                cursor.execute('''
-                    INSERT INTO projects (directory, project_name, repo_name, branch_name, 
-                    user_id, commit_id, is_default, properties)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                ''', (directory, project_name, repo_name, branch_name, user_id, commit_id, default, project_metadata))
+                project = Project(directory=directory, project_name=project_name, repo_name=repo_name,
+                                     branch_name=branch_name, user_id=user_id, commit_id=commit_id, is_default=default,
+                                  properties=project_metadata)
+                project = crud_utils.create_project(db, project)
                 message = f"Project '{project_name}' registered successfully."
-            conn.commit()
-            project_id = cursor.fetchone()[0]
-            logging.info(f"register_project, message: {message}")
-        except psycopg2.Error as e:
-            logging.error(f"register_project, error: {e}")
-        finally:
-            if conn:
-                conn.close()
+                project_id = project.id
+            logging.info(message)
         return project_id
 
-    def list_projects(self):
+    def list_projects(self, user_id: str):
+        with SessionManager() as db:
+            projects = crud_utils.get_projects_by_user_id(db, user_id)
         project_list = []
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT id, directory, is_default FROM projects WHERE is_deleted = false")
-            projects = cursor.fetchall()
-            for project in projects:
-                project_dict = {
-                    "id": project[0],
-                    "directory": project[1],
-                    "active": True if project[2] else False,
-                }
-                # Append the dictionary to the list
-                project_list.append(project_dict)
-        except psycopg2.Error as e:
-            logging.error(f"An error occurred: list_projects, error: {e}")
-        finally:
-            conn.close()
+        for project in projects:
+            project_dict = {
+                "id": project.id,
+                "directory": project.directory,
+                "active": project.is_default,
+            }
+            project_list.append(project_dict)
         return project_list
 
-    def update_project_status(self, project_id, status):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        try:
-            cursor = conn.cursor()
-            # Update project timestamp and status
-            cursor.execute(
-                "UPDATE projects SET updated_at = CURRENT_TIMESTAMP,"
-                " status = %s WHERE id = %s",
-                (status.value, project_id),
-            )
+    def update_project_status(self, project_id: int, status: ProjectStatusEnum):
+        with SessionManager() as db:
+            crud_utils.update_project(db, project_id, status=status.value)
+            logging.info(f"Project with ID {project_id} has now been updated with status {status}.")
 
-            conn.commit()
-            logging.info(
-                f"Project with ID {project_id} has now been updated with status {status}."
-            )
-        except psycopg2.Error as e:
-            logging.error(
-                f"Project with ID {project_id} has error in update_project_status, error: {e}."
-            )
-        finally:
-            conn.close()
-
-    def get_active_project(self):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT id, directory FROM projects WHERE is_default = true AND is_deleted = false"
-            )
-            project = cursor.fetchone()
+    def get_active_project(self, user_id: str):
+        with SessionManager() as db:
+            project = db.query(Project).filter(Project.is_default == True, Project.user_id == user_id).first()
             if project:
-                return project[0]
+                return project.id
             else:
                 return None
-        except psycopg2.Error as e:
-            logging.error(f"An error occurred: get_active_project, error: {e}")
-        finally:
-            conn.close()
 
-    def get_active_dir(self):
-        global conn
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-
-            cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT id, directory FROM projects WHERE is_default = true  AND is_deleted = false"
-            )
-            project = cursor.fetchone()
+    def get_active_dir(self, user_id: str):
+        with SessionManager() as db:
+            project = db.query(Project).filter(Project.is_default == True, Project.user_id == user_id).first()
             if project:
-                return project[1]
+                return project.directory
             else:
                 return None
-        except psycopg2.Error as e:
-            logging.error(f"An error occurred: get_active_dir, error: {e}")
-        finally:
-            conn.close()
 
-    def get_project_from_db(self, project_name, user_id):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(f"""
-                SELECT project_name, directory, id, commit_id, status, is_deleted
-                FROM projects 
-                WHERE project_name = %s AND user_id = %s
-            """,
-                           (project_name, user_id),
-                           )
-
-            project = cursor.fetchone()
+    def get_project_from_db(self, project_name: str, user_id: str):
+        with SessionManager() as db:
+            project = db.query(Project).filter(Project.project_name == project_name, Project.user_id == user_id).first()
             if project:
                 return project
             else:
                 return None
 
-        except psycopg2.Error as e:
-            logging.error(f"project_id: {project_name}, error in get_project_from_db - An error occurred: {e}")
-
-        finally:
-            if "conn" in locals() and conn:
-                conn.close()
-
-    def get_project_from_db_by_id(self, project_id):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(
-                f"""
-                SELECT project_name, directory, id 
-                FROM projects 
-                WHERE id = %s 
-                AND is_deleted = false
-            """,
-                (project_id,),
-            )
-
-            project = cursor.fetchone()
+    def get_project_from_db_by_id(self, project_id: int):
+        with SessionManager() as db:
+            project = crud_utils.get_project_by_id(db, project_id)
             if project:
-                return project
+                return {
+                    "project_name": project.project_name,
+                    "directory": project.directory,
+                    "id": project.id,
+                    "commit_id": project.commit_id,
+                    "status": project.status
+                }
             else:
                 return None
 
-        except psycopg2.Error as e:
-            logging.error(f"Project id: {project_id}, An error occurred: {e}")
-
-        finally:
-            if "conn" in locals() and conn:
-                conn.close()
-
-    def get_project_reponame_from_db(self, project_id):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(
-                f"""
-                SELECT project_name, directory, id 
-                FROM projects 
-                WHERE id = %s 
-                AND is_deleted = false
-            """,
-                (project_id,),
-            )
-
-            project = cursor.fetchone()
+    def get_project_repo_details_from_db(self, project_id: int, user_id: str):
+        with SessionManager() as db:
+            project = db.query(Project).filter(Project.id == project_id, Project.user_id == user_id).first()
             if project:
-                return project
+                return {
+                    "project_name": project.project_name,
+                    "directory": project.directory,
+                    "id": project.id,
+                    "repo_name": project.repo_name,
+                    "branch_name": project.branch_name
+                }
             else:
                 return None
 
-        except psycopg2.Error as e:
-            logging.error(f"Project id: {project_id}, An error occurred in get project reponame from db: {e}")
-
-        finally:
-            if "conn" in locals() and conn:
-                conn.close()
-
-    def get_project_repo_details_from_db(self, project_id, user_id):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(
-                f"""
-                SELECT project_name, directory, id, repo_name, branch_name
-                FROM projects 
-                WHERE id = %s and user_id = %s 
-                AND is_deleted = false
-            """,
-                (project_id, user_id),
-            )
-
-            project = cursor.fetchone()
+    def get_repo_and_branch_name(self, project_id: int):
+        with SessionManager() as db:
+            project = crud_utils.get_project_by_id(db, project_id)
             if project:
-                return project
+                return project.repo_name, project.branch_name
             else:
                 return None
 
-        except psycopg2.Error as e:
-            logging.error(f"Project id: {project_id}, An error occurred in get_project_repo_details_from_db: {e}")
-
-        finally:
-            if "conn" in locals() and conn:
-                conn.close()
-
-    def get_repo_and_branch_name(self, project_id):
-        conn = None
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(f"""
-                SELECT repo_name, branch_name
-                FROM projects 
-                WHERE id = %s 
-                AND is_deleted = false
-            """, (project_id,))
-
-            result = cursor.fetchone()
-            if result:
-                return result
-            else:
-                return None
-
-        except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, get_repo_and_branch_name - An error occurred: {e}")
-
-        finally:
-            conn.close()
-
-    def get_project_from_db_by_id_and_user_id(self, project_id, user_id):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(
-                f"""
-                SELECT project_name, directory, id 
-                FROM projects 
-                WHERE id = %s and user_id = %s 
-                AND is_deleted = false
-            """,
-                (project_id, user_id),
-            )
-
-            project = cursor.fetchone()
+    def get_project_from_db_by_id_and_user_id(self, project_id: int, user_id: str):
+        with SessionManager() as db:
+            project = db.query(Project).filter(Project.id == project_id, Project.user_id == user_id).first()
             if project:
-                return project
+                return {
+                    'project_name': project.project_name,
+                    'directory': project.directory,
+                    'id': project.id,
+                    'commit_id': project.commit_id,
+                    'status': project.status
+                }
             else:
                 return None
-
-        except psycopg2.Error as e:
-            logging.error(f"project_id: {project_id}, get_project_from_db_by_id_and_user_id - An error occurred: {e}")
-
-        finally:
-            if "conn" in locals() and conn:
-                conn.close()
 
     def get_first_project_from_db_by_repo_name_branch_name(self, repo_name, branch_name):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT project_name, directory, id , user_id
-                FROM projects 
-                WHERE repo_name = %s and branch_name = %s
-                ORDER BY id ASC
-            """,
-                (repo_name, branch_name),
-            )
-
-            project = cursor.fetchone()
+        with SessionManager() as db:
+            project = db.query(Project).filter(Project.repo_name == repo_name, Project.branch_name == branch_name).first()
             if project:
-                return project
+                return model_to_dict(project)
             else:
                 return None
-
-        except psycopg2.Error as e:
-            logging.error(f"get_first_project_from_db_by_repo_name_branch_name - An error occurred: {e}")
-
-        finally:
-            if "conn" in locals() and conn:
-                conn.close()
 
     def get_first_user_id_from_project_repo_name(self, repo_name):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT user_id
-                FROM projects 
-                WHERE repo_name = %s
-                ORDER BY id ASC
-            """,
-                (repo_name, )
-            )
-
-            project = cursor.fetchone()
+        with SessionManager() as db:
+            project = db.query(Project).filter(Project.repo_name == repo_name).first()
             if project:
-                return project
+                return project.user_id
             else:
                 return None
 
-        except psycopg2.Error as e:
-            logging.error(f"get_first_user_id_from_project_repo_name - An error occurred: {e}")
-
-        finally:
-            if "conn" in locals() and conn:
-                conn.close()
-
-    def get_parsed_project_branches(self, repo_name, user_id, default):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-
-            cursor = conn.cursor()
-
-            # Build the base query
-            query = (
-                "SELECT id, branch_name, repo_name, updated_at, is_default,"
-                f" status FROM projects WHERE user_id = %s AND is_deleted = false"
-            )
-            params = [user_id]
-
-            # Add conditions based on the parameters
+    def get_parsed_project_branches(self, repo_name: str = None, user_id: str = None, default: bool = None):
+        with SessionManager() as db:
+            query = db.query(Project).filter(Project.user_id == user_id)
             if default is not None:
-                query += " AND is_default = %s"
-                params.append(default)
-
+                query = query.filter(Project.is_default == default)
             if repo_name is not None:
-                query += " AND repo_name = %s"
-                params.append(repo_name)
-            cursor.execute(query, tuple(params))
+                query = query.filter(Project.repo_name == repo_name)
+            projects = query.all()
+        return [(p.id, p.branch_name, p.repo_name, p.updated_at, p.is_default, p.status) for p in projects]
 
-            project = cursor.fetchall()
-            return project
-
-        except psycopg2.Error as e:
-            logging.error(f"get_parsed_project_branches - An error occurred: {e}")
-
-        finally:
-            if "conn" in locals() and conn:
-                conn.close()
 
     def delete_project(self, project_id: int, user_id: str):
-        conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-        try:
-            cursor = conn.cursor()
-            query = """
-                UPDATE projects
-                SET is_deleted = true, updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s AND user_id = %s AND is_deleted = false;
-            """
-            cursor.execute(query, (project_id, user_id))
-            if cursor.rowcount == 0:
-                raise HTTPException(
-                    status_code=404,
-                    detail="No matching project found or project is already deleted."
+        with SessionManager() as db:
+            try:
+                result = crud_utils.update_project(
+                    db,
+                    project_id,
+                    is_deleted=True,
+                    updated_at=datetime.utcnow(),
+                    user_id=user_id
                 )
-            else:
-                logging.info("Project deleted successfully.")
-            conn.commit()
-        except psycopg2.Error as e:
-            raise HTTPException(
-                status_code=500,
-                detail="An error occurred while restoring the project"
-            )
-        finally:
-            conn.close()
+                if not result:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="No matching project found or project is already deleted."
+                    )
+                logging.info(f"Project {project_id} deleted successfully.")
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"An error occurred while deleting the project: {str(e)}"
+                )
 
     def restore_project(self, project_id: int, user_id: str):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE projects
-                SET is_deleted = false
-                WHERE id = %s AND user_id = %s AND is_deleted = true
-                RETURNING id
-            """, (project_id, user_id))
-            result = cursor.fetchone()
-            conn.commit()
-            if result:
-                return f"Project with ID {result[0]} restored successfully."
-            else:
-                return "Project not found or already restored."
-        except psycopg2.Error as e:
-            print(f"An error occurred: {e}")
-            return "Error occurred during restoration."
-        finally:
-            conn.close()
+        with SessionManager() as db:
+            try:
+                result = crud_utils.update_project(
+                    db,
+                    project_id,
+                    is_deleted=False,
+                    user_id=user_id
+                )
+                if result:
+                    message = f"Project with ID {project_id} restored successfully."
+                else:
+                    message = "Project not found or already restored."
+                logging.info(message)
+                return message
+            except Exception as e:
+                db.rollback()
+                logging.error(f"An error occurred: {e}")
+                return "Error occurred during restoration."
 
     def restore_all_project(self, repo_name: str, user_id: str):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE projects
-                SET is_deleted = false
-                WHERE repo_name = %s AND user_id = %s AND is_deleted = true
-                RETURNING id
-            """, (repo_name, user_id))
-            result = cursor.fetchall()
-            conn.commit()
-            if result:
-                print()
-                return f"Project with repo_name {repo_name} restored successfully."
-            else:
-                return "Project not found or already restored."
-        except psycopg2.Error as e:
-            print(f"An error occurred: {e}")
-            return "Error occurred during restoration."
-        finally:
-            conn.close()
+        with SessionManager() as db:
+            try:
+                projects = crud_utils.get_projects_by_repo_name(db, repo_name, user_id, is_deleted=True)
+                for project in projects:
+                    crud_utils.update_project(db, project.id, is_deleted=False)
+                if projects:
+                    message = f"Projects with repo_name {repo_name} restored successfully."
+                else:
+                    message = "Projects not found or already restored."
+                logging.info(message)
+                return message
+            except Exception as e:
+                db.rollback()
+                logging.error(f"An error occurred: {e}")
+                return "Error occurred during restoration."
 
     def delete_all_project_by_repo_name(self, repo_name: str, user_id: str):
-        try:
-            conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE projects
-                SET is_deleted = true
-                WHERE repo_name = %s AND user_id = %s AND is_deleted = false
-                RETURNING id
-            """, (repo_name, user_id))
-            result = cursor.fetchall()
-            conn.commit()
-            if result:
-                print()
-                return f"Projects with repo_name {repo_name} deleted successfully."
-            else:
-                return "Project not found or already deleted."
-        except psycopg2.Error as e:
-            print(f"An error occurred: {e}")
-            return "Error occurred during deletion."
-        finally:
-            conn.close()
+        with SessionManager() as db:
+            try:
+                projects = crud_utils.get_projects_by_repo_name(db, repo_name, user_id, is_deleted=False)
+                for project in projects:
+                    crud_utils.update_project(db, project.id, is_deleted=True)
+                if projects:
+                    message = f"Projects with repo_name {repo_name} deleted successfully."
+                else:
+                    message = "Projects not found or already deleted."
+                logging.info(message)
+                return message
+            except Exception as e:
+                db.rollback()
+                logging.error(f"An error occurred: {e}")
+                return "Error occurred during deletion."

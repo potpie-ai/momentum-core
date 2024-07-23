@@ -30,7 +30,7 @@ class Dependencies:
         flow: list,
         print_text: bool = True,  # optionally prints text; helpful for understanding the function & debugging
     ) -> str:
-        calls = self.neo4j_graph.fetch_first_order_neighbors(function_identifier, project_details[2])
+        calls = self.neo4j_graph.fetch_first_order_neighbors(function_identifier, project_details["id"])
 
         # Step 1: Generate an explanation of the function
         detect_system_message = SystemMessage(
@@ -78,7 +78,7 @@ class Dependencies:
 
 
     async def get_dependencies(self, project_details, function_identifier):
-        flow = get_flow(function_identifier, project_details[2])
+        flow = get_flow(function_identifier, project_details["id"])
         flow_trimmed = [x.split(':')[1] for x in flow if x != function_identifier]
         output = []
         for function in flow:

@@ -1,62 +1,31 @@
+import ast
+import io
 import json
 import logging
 import os
 import re
 
 import psycopg2
+from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm.exc import DetachedInstanceError
 from tree_sitter_languages import get_language, get_parser
+from tree_sitter import Node
 
 from server.endpoint_detection import EndpointManager
+from server.schemas import Project
 from server.utils.github_helper import GithubService
 from server.utils.graph_db_helper import Neo4jGraph
 from server.utils.parse_helper import delete_folder
+from server.utils.model_helper import model_to_dict
 
 parser = get_parser("python")
-
 codebase_map = f"/.momentum/momentum.db"
 neo4j_graph = Neo4jGraph()
 
+logger = logging.getLogger(__name__)
+
 def add_codebase_map_path(directory):
     return f"{directory}{codebase_map}"
-
-
-def cleanup(directory: str):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DROP TABLE IF EXISTS endpoints")
-        cursor.execute("DROP TABLE IF EXISTS nodes")
-        cursor.execute("DROP TABLE IF EXISTS edges")
-        conn.commit()
-        logging.info(f"Tables dropped successfully, directory: {directory}")
-    except psycopg2.Error as e:
-        logging.error(f"An error occurred while dropping tables: {e}")
-    finally:
-        if conn:
-            conn.close()
-
-
-def _create_explanation_table_if_not_exists(directory: str):
-    conn = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS explanation (
-                id SERIAL PRIMARY KEY,
-                identifier TEXT NOT NULL,
-                hash TEXT NOT NULL,
-                explanation TEXT NOT NULL,
-                project_id integer NOT NULL,
-                UNIQUE(identifier, hash, project_id),
-                CONSTRAINT fk_project FOREIGN KEY (project_id)
-                REFERENCES projects (id)
-                ON DELETE CASCADE
-            )
-        """)
-        conn.commit()
-    finally:
-        if conn:
-            conn.close()
 
 
 def add_node_safe(
@@ -812,9 +781,14 @@ def extract_function_metadata(node, parameters=[], class_context=None):
     return function_name, parameters, start, end, response
 
 
+def print_tree(node, depth=0):
+    print(f"{'  ' * depth}{node.type}: {node.text.decode('utf-8')}")
+    for child in node.children:
+        print_tree(child, depth + 1)
+
+
 # todo: optimise for single run
 async def analyze_directory(directory, user_id, project_id):
-    _create_explanation_table_if_not_exists(directory)
     user_defined_functions = {}
     file_index = {}
     all_class_definitions = []
@@ -1010,10 +984,11 @@ def get_code_for_function(function_identifier):
 
 
 def get_node(function_identifier, project_details):
-    return neo4j_graph.get_node_by_id(function_identifier, project_details[2])
+    return neo4j_graph.get_node_by_id(function_identifier, project_details["id"])
 
 def get_node_by_id(node_id, project_id):
     return neo4j_graph.get_node_by_id(node_id, project_id)
+
 
 def get_values(repo_branch, project_manager, user_id):
     repo_name = repo_branch.repo_name.split("/")[-1]
@@ -1023,5 +998,5 @@ def get_values(repo_branch, project_manager, user_id):
     )
     project_deleted = None
     if project_details:
-        project_deleted = project_details[5]
-    return repo_name, branch_name, project_deleted, project_details
+        project_deleted = project_details.is_deleted
+    return repo_name, branch_name, project_deleted, model_to_dict(project_details)

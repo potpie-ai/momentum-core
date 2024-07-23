@@ -1,16 +1,9 @@
-import os
-
-import psycopg2
-
 from server.utils.graph_db_helper import Neo4jGraph
-from server.utils.config import neo4j_config
+from server.db.session import SessionManager
+from server.schemas import Endpoint
 
-codebase_map = f'/.momentum/momentum.db'
 neo4j_graph = Neo4jGraph()
 
-
-def add_codebase_map_path(directory):
-    return f"{directory}{codebase_map}"
 
 def find_entry_points(identifiers, directory, project_id):
     all_inbound_nodes = set()
@@ -33,22 +26,18 @@ def find_entry_points(identifiers, directory, project_id):
     return entry_points
 
 
+
 def find_paths(entry_points, project_id):
-    # Connect to the endpoints database
-    conn_endpoints = psycopg2.connect(os.getenv("POSTGRES_SERVER"))
-    endpoints_cursor = conn_endpoints.cursor()
-
     paths = {}
-
-    for entry_point in entry_points:
-        entry_point_dict = dict(entry_point)
-        endpoints_cursor.execute("SELECT path FROM endpoints WHERE identifier = %s and project_id = %s",
-                                 (entry_point_dict['id'], project_id, ))
-        path = endpoints_cursor.fetchone()
-        if path:
-            paths[entry_point_dict['id']] = path[0]
-
-    conn_endpoints.close()
+    with SessionManager() as db:
+        for entry_point in entry_points:
+            entry_point_dict = dict(entry_point)
+            endpoint = db.query(Endpoint.path).filter(
+                Endpoint.identifier == entry_point_dict['id'],
+                Endpoint.project_id == project_id
+            ).first()
+            if endpoint:
+                paths[entry_point_dict['id']] = endpoint.path
     return paths
 
 

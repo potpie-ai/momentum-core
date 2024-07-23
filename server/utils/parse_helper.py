@@ -104,7 +104,7 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
         user_id,
         latest_commit_sha,
         default,
-        json.dumps(repo_metadata),
+        json.dumps(repo_metadata).encode('utf-8'),
         project_id
     )
     project_manager.update_project_status(project_id, ProjectStatusEnum.CREATED)
@@ -112,8 +112,8 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
 
 
 def reparse_cleanup(project_details, user_id):
-    directory = project_details[1]
-    project_id = project_details[2]
+    directory = project_details["directory"]
+    project_id = project_details["id"]
     EndpointManager(directory).delete_endpoints(project_id, user_id)
     neo4j_graph.delete_nodes_by_project_id(project_id)
     delete_folder(directory)
