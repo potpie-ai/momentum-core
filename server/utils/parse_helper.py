@@ -104,7 +104,7 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
         user_id,
         latest_commit_sha,
         default,
-        json.dumps(repo_metadata),
+        json.dumps(repo_metadata).encode('utf-8'),
         project_id
     )
     project_manager.update_project_status(project_id, ProjectStatusEnum.CREATED)

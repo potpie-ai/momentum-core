@@ -1,6 +1,7 @@
 from server.db.session import SessionManager
 from server.crud import crud_utils
 from server.models.repo_details import ProjectStatusEnum
+from server.parse import model_to_dict
 from server.schemas import Project
 import logging
 from fastapi import HTTPException
@@ -69,7 +70,13 @@ class ProjectManager:
         with SessionManager() as db:
             project = crud_utils.get_project_by_id(db, project_id)
             if project:
-                return project.project_name, project.directory, project.id, project.commit_id, project.status
+                return {
+                    "project_name": project.project_name,
+                    "directory": project.directory,
+                    "id": project.id,
+                    "commit_id": project.commit_id,
+                    "status": project.status
+                }
             else:
                 return None
 

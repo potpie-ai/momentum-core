@@ -780,14 +780,6 @@ def extract_function_metadata(node, parameters=[], class_context=None):
     return function_name, parameters, start, end, response
 
 
-def parse_config(content: str) -> dict:
-    try:
-        # Use StringIO to create a file-like object from the string
-        config_io = io.StringIO(content)
-        return toml.load(config_io)
-    except toml.TomlDecodeError as e:
-        raise ValueError(f"Invalid TOML: {str(e)}")
-
 def print_tree(node, depth=0):
     print(f"{'  ' * depth}{node.type}: {node.text.decode('utf-8')}")
     for child in node.children:
