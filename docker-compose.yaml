@@ -78,7 +78,7 @@ services:
     networks:
       - app-network
 
-  knowledge-graph:
+  knowledge_graph:
     build:
       context: ./knowledge_graph
     container_name: knowledge_graph
@@ -86,26 +86,6 @@ services:
       - "8081:8081"
     env_file:
       - .env
-    networks:
-      - app-network
-
-  momentum:
-    build:
-      context: .
-    container_name: momentum
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
-    env_file:
-      - .env
-    volumes:
-      - ${HOME}/.config/gcloud/application_default_credentials.json:/tmp/keys/application_default_credentials.json:ro
-    ports:
-      - "8001:8001"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      knowledge-graph:
-        condition: service_started
     networks:
       - app-network
 
