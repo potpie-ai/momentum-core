@@ -124,7 +124,7 @@ To get started with Momentum, follow these steps:
     ./start_momentum.sh
     ```
 
-Note: You might need to make it an executable, do it by running chmod +x run-momentum.sh
+Note: You might need to make it an executable, do it by running chmod +x start_momentum.sh
 
 ## Usage
 
