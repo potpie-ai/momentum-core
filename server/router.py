@@ -382,8 +382,8 @@ async def generate_test(
         user=Depends(check_auth),
 ):
     user_id = user["user_id"]
-    test_max_count = 20000 #if use_test_details_manager.is_pro_plan(user_id) else 50
-    if True: #use_test_details_manager.get_test_count_last_month(user_id) < test_max_count:
+    test_max_count = 200 if use_test_details_manager.is_pro_plan(user_id) else 50
+    if use_test_details_manager.get_test_count_last_month(user_id) < test_max_count:
         project_details = project_manager.get_project_repo_details_from_db(
             project_id,
             user_id
