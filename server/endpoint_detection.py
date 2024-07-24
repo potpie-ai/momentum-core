@@ -526,19 +526,21 @@ class EndpointManager:
             db.commit()
         logging.info(f"Endpoints with project_id {project_id} and user_id {user_id} deleted successfully.")
 
-    def update_test_plan(self, identifier, plan, project_id):
+    def update_test_plan(self, identifier, plan, configuration, project_id):
         with SessionManager() as db:
             endpoint = db.query(Endpoint).filter(
                 Endpoint.identifier == identifier,
                 Endpoint.project_id == project_id
             ).first()
+            if configuration:
+                endpoint.configuration = configuration
             if endpoint:
                 endpoint.test_plan = plan
                 db.commit()
             else:
                 raise HTTPException(status_code=404, detail="Endpoint not found")
 
-    def update_test_preferences(self, identifier, preferences, project_id):
+    def update_test_preferences(self, identifier, preferences, project_id, configuration):
         with SessionManager() as db:
             endpoint = db.query(Endpoint).filter(
                 Endpoint.identifier == identifier,
@@ -546,6 +548,8 @@ class EndpointManager:
             ).first()
             if endpoint:
                 endpoint.preferences = json.dumps(preferences)
+                if configuration:
+                    endpoint.configuration = configuration
                 db.commit()
             else:
                 raise HTTPException(status_code=404, detail="Endpoint not found")
@@ -580,10 +584,14 @@ class EndpointManager:
             ).first()
             if endpoint:
                 test_plan = json.loads(endpoint.test_plan) if endpoint.test_plan else None
-                preferences = json.loads(endpoint.preferences) if endpoint.preferences else None
-                return test_plan, preferences
+                if endpoint.configuration:
+                    configuration = endpoint.configuration if isinstance(endpoint.configuration, dict) else json.loads(endpoint.configuration)
+                else:
+                    configuration = None
+                preferences = json.loads(json.loads(endpoint.preferences.strip())) if endpoint.preferences else None
+                return test_plan, preferences, configuration
             else:
-                return None, None
+                return None, None, None
 
 
     # graph database changes

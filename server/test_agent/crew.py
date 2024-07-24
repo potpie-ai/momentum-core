@@ -19,7 +19,8 @@ from server.utils.test_detail_handler import UserTestDetailsManager
 
 class GenerateTest:
   
-  def __init__(self, identifier: str, endpoint_path: str, test_plan: dict, user_id: str, directory: str, project_id: str, preferences: dict):
+  def __init__(self, identifier: str, endpoint_path: str, test_plan: dict, user_id: str, directory: str,
+               project_id: str, preferences: dict, configuration: dict):
     self.directory = directory
     self.user_id = user_id
     self.openai_client = get_llm_client(user_id, "gpt-3.5-turbo-0125")
@@ -31,7 +32,7 @@ class GenerateTest:
     self.pydantic_definition_agent = TestAgents(self.openai_client, self.directory).pydantic_definition_agent()
     self.code_analysis_agent = TestAgents(self.openai_client,self.directory).code_analysis_agent(identifier, project_id)
     self.knowledge_graph_query_task = TestTasks(self.reasoning_client, self.directory).query_knowledge_graph(identifier, project_id)
-    self.test_task = TestTasks(self.reasoning_client, self.directory ).test_task(identifier , self.test_plan, self.endpoint_path,self.knowledge_graph_query_task, self.pydantic_definition_task, project_id, preferences)
+    self.test_task = TestTasks(self.reasoning_client, self.directory ).test_task(identifier , self.test_plan, self.endpoint_path,self.knowledge_graph_query_task, self.pydantic_definition_task, project_id, preferences, configuration)
     self.testing_agent = TestAgents(self.openai_client, self.directory).testing_agent(identifier, self.test_plan)
     self.test_crew = Crew(agents=[self.pydantic_definition_agent, self.code_analysis_agent, self.testing_agent], tasks=[self.pydantic_definition_task, self.knowledge_graph_query_task, self.test_task], process=Process.sequential, llm=self.openai_client)
     self.user_detail_manager = UserTestDetailsManager()

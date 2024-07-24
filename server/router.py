@@ -286,6 +286,7 @@ class TestPlan(BaseModel):
 def set_plan(test_plan: TestPlanDetails, user=Depends(check_auth)):
     identifier = test_plan.identifier
     project_id = test_plan.project_id
+    configuration = test_plan.configuration
     project_details = project_manager.get_project_from_db_by_id_and_user_id(
         project_id, user["user_id"]
     )
@@ -297,6 +298,7 @@ def set_plan(test_plan: TestPlanDetails, user=Depends(check_auth)):
             ).update_test_plan(
                 identifier,
                 test_plan.plan.model_dump_json(),
+                json.dumps(configuration),
                 project_details["id"],
             )
             return updated_test_plan
@@ -309,19 +311,19 @@ def set_plan(test_plan: TestPlanDetails, user=Depends(check_auth)):
 
 
 @api_router.put("/endpoints/preference")
-def set_preferences(preference: PreferenceDetails, user=Depends(check_auth)):
-    project_id = preference.project_id
+def set_preferences(preference_detail: PreferenceDetails, user=Depends(check_auth)):
+    project_id = preference_detail.project_id
     project_details = project_manager.get_project_from_db_by_id_and_user_id(
         project_id, user["user_id"]
     )
-    identifier = preference.identifier
+    identifier = preference_detail.identifier
     if project_details is not None:
-        preference = preference.preference
+        preference = preference_detail.preference
         if preference and preference != {}:
             return EndpointManager(
                 project_details["directory"]
             ).update_test_preferences(
-                identifier, preference, project_details["id"]
+                identifier, preference, project_details["id"], preference_detail.configuration
             )
         else:
             raise HTTPException(
@@ -380,8 +382,8 @@ async def generate_test(
         user=Depends(check_auth),
 ):
     user_id = user["user_id"]
-    test_max_count = 200 if use_test_details_manager.is_pro_plan(user_id) else 50
-    if use_test_details_manager.get_test_count_last_month(user_id) < test_max_count:
+    test_max_count = 20000 #if use_test_details_manager.is_pro_plan(user_id) else 50
+    if True: #use_test_details_manager.get_test_count_last_month(user_id) < test_max_count:
         project_details = project_manager.get_project_repo_details_from_db(
             project_id,
             user_id
@@ -389,13 +391,13 @@ async def generate_test(
         if project_details is not None:
             project_dir = project_details["directory"]
             project_id = project_details["id"]
-            test_plan, preferences = EndpointManager(
+            test_plan, preferences, configuration = EndpointManager(
                 project_dir
             ).get_test_plan_preferences(identifier, project_id)
             if test_plan is None:
                 test_plan = await Plan(
                     user["user_id"]
-                ).generate_test_plan_for_endpoint(identifier, project_details, preferences)
+                ).generate_test_plan_for_endpoint(identifier, project_details, configuration, preferences)
             no_of_test_generated = (len(test_plan["happy_path"] if "happy_path" in test_plan else 0)
                                     + len(test_plan["edge_case"] if "edge_case" in test_plan else 0))
             return await GenerateTest(
@@ -405,7 +407,8 @@ async def generate_test(
                 user["user_id"],
                 project_dir,
                 project_id,
-                preferences
+                preferences,
+                configuration
             ).write_tests(identifier, no_of_test_generated, project_details, user_id)
         else:
             raise HTTPException(

@@ -11,5 +11,5 @@ class UserTestDetail(Document):
     date_of_generation = DateTimeField(default=datetime.datetime.utcnow)
     repo_name = StringField(required=True)
     branch_name = StringField(required=True)
-
+    configuration = StringField(required=False)
     meta = {'collection': 'user_test_details'}

@@ -88,6 +88,7 @@ class Plan:
         explanation: str,
         to_be_mocked: str,
         is_db_mocked: bool,
+        configuration: dict,
         test_package: str = "pytest",  # integration testing package; use the name as it appears in the import statement
         approx_min_cases_to_cover: int = 6,  # minimum number of test case categories to cover (approximate)
         print_text: bool = True,  # optionally prints text; helpful for understanding the function & debugging
@@ -117,7 +118,8 @@ To help integration test the flow above:
   * Is database mocked: {is_db_mocked}
 3. List diverse happy path and edge case scenarios that the function should handle. 
 4. Include exactly 3 scenario statements of happy paths and 3 scenarios of edge cases. 
-5. Format your output in JSON format as such, each scenario is only a string statement:
+5. The inputs for the test cases should be in this format - {configuration["test_input"]}
+6. Format your output in JSON format as such, each scenario is only a string statement:
 {{
 \"happy_path\": [
     \"happy_scenario1\",
@@ -319,7 +321,7 @@ To help integration test the flow above:
         return code
 
     async def generate_test_plan_for_endpoint(
-        self, identifier: str, project_details: dict, preferences: dict = None
+        self, identifier: str, project_details: dict, configuration: dict = None, preferences: dict = None
     ):  
         to_be_mocked = ""
         is_db_mocked = False
@@ -356,12 +358,12 @@ To help integration test the flow above:
             f" format:\n {graph}"
             + context
         )
-        test_plan = await self._plan(context, to_be_mocked, is_db_mocked)
+        test_plan = await self._plan(context, to_be_mocked, is_db_mocked, configuration)
         test_plan = self._extract_json(test_plan.content)
         plan_obj = TestPlan(**test_plan)
         (
             EndpointManager( project_details["directory"]).update_test_plan(
-                identifier, plan_obj.model_dump_json(), project_details["id"]
+                identifier, plan_obj.model_dump_json(), configuration, project_details["id"]
             )
         )
         return test_plan

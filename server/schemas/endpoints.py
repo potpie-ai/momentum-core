@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import Column, Integer, Text
+from sqlalchemy import Column, Integer, Text, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKeyConstraint, PrimaryKeyConstraint
 from server.schemas.base import Base
@@ -12,6 +12,7 @@ class Endpoint(Base):
     identifier = Column(Text)
     test_plan = Column(Text)
     preferences = Column(Text)
+    configuration = Column(JSON)
     project_id = Column(Integer, nullable=False)
     __table_args__ = (
         PrimaryKeyConstraint("project_id", "identifier"),
