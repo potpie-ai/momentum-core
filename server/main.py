@@ -8,7 +8,7 @@ from server.firebase_setup import firebase_init
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-load_dotenv()
+load_dotenv(override=True)
 
 from server.api.project_api import api_router_project
 from server.api.routers.auth import auth_router

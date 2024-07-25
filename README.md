@@ -109,66 +109,22 @@ To get started with Momentum, follow these steps:
     cd momentum-core
     ```
 
-2. **Set up the database via Docker**:
+2. **Set up the virtual environment**:
     ```bash
-    docker-compose up
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
     ```
-
-3. Set up environment: 
-   ```
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-4. **Run migrations**:
-   Create a .env inside `/server` based on .env.template
-    ```bash
-    alembic upgrade head
-    ```
-
-5. **Setup keys**: 
+3. **Setup keys and .env**: 
    You will have to setup keys for services like firebase auth, github app, Open AI, portkey among others. 
    Follow the detailed instructions [here](https://docs.momentum.sh/getting-started/installation/cloud-integrations)
    
 6. **Start the application**:
     ```bash
-    uvicorn server.main:app --host 0.0.0.0 --port 8001
+    ./start_momentum.sh
     ```
 
-## Build Instructions with docker
-
-1. **Set Up the Environment:**
-   Configure your environment variables by creating a `.env` file based on the `.env.template` provided in the repository. 
-   This file should include all necessary configuration settings for the application.
-
-2. **Google Cloud Authentication:**
-   Log in to your Google Cloud account and set up Application Default Credentials (ADC). 
-   You can find detailed instructions [here](https://cloud.google.com/docs/authentication/provide-credentials-adc#how-to).
-
-3. **Build Docker Image:**
-   Build the Docker image using the following command:
-   ```bash
-   docker build -t momentum .
-   ```
-
-4. **Bring the required infrastructure up:**
-    ```bash
-   docker-compose up
-   ```
-    
-5. **Run migrations**:
-   Ensure .env is correctly setup
-    ```bash
-    alembic upgrade head
-    ```
-    
-6. **Run Momentum**
-    ```bash
-   ./run-momentum.sh
-   ```
-   Note: 
-   (a) Read the shell script to modify google cloud credentials if needed
-   (b) You might need to make it an executable, do it by running chmod +x run-momentum.sh
+Note: You might need to make it an executable, do it by running chmod +x start_momentum.sh
 
 ## Usage
 
