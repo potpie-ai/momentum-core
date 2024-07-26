@@ -12,21 +12,25 @@ async def check_auth(
         HTTPBearer(auto_error=False)
     ),
 ):
-    if credential is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Bearer authentication is needed",
-            headers={"WWW-Authenticate": 'Bearer realm="auth_required"'},
-        )
-    try:
-        decoded_token = auth.verify_id_token(credential.credentials)
-        request.state.user = decoded_token
-    except Exception as err:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authentication from Firebase. {err}",
-            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
-        )
-    res.headers["WWW-Authenticate"] = 'Bearer realm="auth_required"'
-    return decoded_token
-    
+     # Check if the application is in debug mode
+    if os.getenv("isDevelopmentMode") == "enabled":
+        request.state.user = {"user_id": 'momentum'}
+        return {"user_id":'momentum'}
+    else:
+        if credential is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Bearer authentication is needed",
+                headers={"WWW-Authenticate": 'Bearer realm="auth_required"'},
+            )
+        try:
+            decoded_token = auth.verify_id_token(credential.credentials)
+            request.state.user = decoded_token
+        except Exception as err:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid authentication from Firebase. {err}",
+                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+            )
+        res.headers["WWW-Authenticate"] = 'Bearer realm="auth_required"'
+        return decoded_token

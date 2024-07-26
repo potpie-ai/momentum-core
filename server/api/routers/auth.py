@@ -17,6 +17,8 @@ from server.auth import check_auth
 from server.models.login_request import LoginRequest
 from server.models.user import CreateUser
 
+import logging
+
 auth_router = APIRouter()
 
 @auth_router.post("/login")
@@ -64,3 +66,18 @@ async def signup(request: Request):
 @auth_router.get("/usage")
 async def usage(user=Depends(check_auth)):
     return {"tests_generated": UserTestDetailsManager().get_test_count_last_month(user["user_id"])}
+
+
+def setup_dummy_user():
+    user = CreateUser(
+        uid= 'momentum',
+        email="testing@momentum.sh",
+        display_name="Dummy User",
+        email_verified=True,
+        created_at=datetime.utcnow(),
+        last_login_at=datetime.utcnow(),
+        provider_info={},
+        provider_username="self",
+    )
+    uid, message, error = user_handler.create_user(user)
+    logging.info(f"Created dummy user with uid: {uid}")

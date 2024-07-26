@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv(override=True)
 
 from server.api.project_api import api_router_project
-from server.api.routers.auth import auth_router
+from server.api.routers.auth import auth_router, setup_dummy_user
 from server.key_management.secret_manager import router as secret_router
 from server.routers.webhook import router as webhook_router
 from server.router import api_router as code_router
@@ -20,6 +20,10 @@ from server.utils.posthog_middleware import PostHogMiddleware
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 app = FastAPI()
+
+if os.getenv("isDevelopmentMode") == "enabled" and os.getenv("ENV") != "development":
+    raise ValueError("isDevelopmentMode is enabled but ENV is not development")
+
 
 if os.getenv("ENV") == "production":
     posthog_api_key = os.getenv("POSTHOG_PROJECT_KEY")
@@ -66,7 +70,6 @@ def check_and_set_env_vars():
     required_env_vars = [
         "OPENAI_API_KEY",
         "OPENAI_MODEL_REASONING",
-        "GITHUB_PRIVATE_KEY",
     ]
     for env_var in required_env_vars:
         if env_var not in os.environ:
@@ -74,8 +77,13 @@ def check_and_set_env_vars():
             os.environ[env_var] = value
 
 
+if os.getenv("isDevelopmentMode") == "enabled":
+    print("Setting up dummy user")
+    setup_dummy_user()
+else:
+    firebase_init()
+
 setup_project_dir()
-firebase_init()
 check_and_set_env_vars()
 
 app.include_router(code_router)
