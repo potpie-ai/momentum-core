@@ -69,7 +69,6 @@ async def parse_directory(
     except Exception as e:
         raise HTTPException(status_code=400, detail="Repository not found")
     user_id = user["user_id"]
-    print("user_id", user_id)
     message = ""
     repo_name, branch_name, is_deleted, project_details = get_values(
         repo_branch, project_manager, user_id

@@ -31,6 +31,8 @@ def create_client(provider, key, model_name, user_id):
         
 
 def get_provider_key(customer_id):
+    if os.environ.get("isDevelopmentMode") == "enabled":
+        return {"provider": "openai", "key": os.environ.get("OPENAI_API_KEY")}
     firestore_helper = FirestoreHelper()
     preference = firestore_helper.get(customer_id, "preferences").get()
     if preference.exists and preference.get("provider") == "openai":

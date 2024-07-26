@@ -49,6 +49,7 @@ else:
     logging.info("Non Production Environment, Sentry Disabled")
 
 origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -78,7 +79,6 @@ def check_and_set_env_vars():
 
 
 if os.getenv("isDevelopmentMode") == "enabled":
-    print("Setting up dummy user")
     setup_dummy_user()
 else:
     firebase_init()
