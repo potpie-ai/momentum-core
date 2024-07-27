@@ -69,7 +69,7 @@ async def parse_directory(
 
     if repo_details.repo_path:
         if not os.path.exists(repo_details.repo_path):
-            raise HTTPException(status_code=400, detail="Local repository path does not exist")
+            raise HTTPException(status_code=400, detail="Local repository does not exist on given path")
         try:
             shutil.copytree(repo_details.repo_path, local_repo_path)
             repo = Repo(local_repo_path)
@@ -123,8 +123,6 @@ async def parse_directory(
             else:
                 message = "The project has been re-parsed successfully"
             if repo_details.repo_path:
-                # Always parse the latest commit for local repositories
-                reparse_cleanup(project_details, user_id)
                 dir_details, project_id, should_parse_repo = setup_project_directory(
                     owner, repo_name, branch_name, app_auth, repo, user_id, project_id
                 )
