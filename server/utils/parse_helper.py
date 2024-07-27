@@ -76,13 +76,18 @@ def clone_repo(repo_url, branch, target_dir):
 def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, project_id=None):
     should_parse_repo = True
     default = False
+
     if isinstance(repo_details, Repo):
         extracted_dir = repo_details.working_tree_dir
         try:
+            current_dir = os.getcwd()
+            os.chdir(extracted_dir)  # Change to the cloned repo directory
             repo_details.git.checkout(branch)
         except GitCommandError as e:
             logging.error(f"Error checking out branch: {e}")
             raise HTTPException(status_code=400, detail=f"Failed to checkout branch {branch}")
+        finally:
+            os.chdir(current_dir)  # Restore the original working directory
         branch_details = repo_details.head.commit
         latest_commit_sha = branch_details.hexsha
     else:
@@ -100,14 +105,17 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
         pass
 
     repo_metadata = extract_repository_metadata(repo_details)
-    python_percentage = (repo_metadata["languages"]["breakdown"]["Python"] /
-                         repo_metadata["languages"]["total_bytes"] * 100) \
-        if "Python" in repo_metadata["languages"]["breakdown"] else 0
-    if python_percentage < 50:
-        repo_metadata['error_message'] = "Repository doesn't consist of a language currently supported."
-        should_parse_repo = False
-    else:
-        repo_metadata['error_message'] = None
+    # total_bytes = repo_metadata["languages"]["total_bytes"]
+    # python_bytes = repo_metadata["languages"]["breakdown"].get("Python", 0)
+
+    # python_percentage = (python_bytes / total_bytes * 100) if total_bytes > 0 else 0
+    # print(f"Python Percentage: {python_percentage}")
+
+    # if python_percentage < 50:
+    #     repo_metadata['error_message'] = "Repository doesn't consist of a language currently supported."
+    #     should_parse_repo = False
+    # else:
+    repo_metadata['error_message'] = None
     
     project_id = project_manager.register_project(
         extracted_dir,
@@ -124,8 +132,8 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
     return extracted_dir, project_id, should_parse_repo
 
 def reparse_cleanup(project_details, user_id):
-    directory = project_details["directory"]
-    project_id = project_details["id"]
+    directory = project_details.directory
+    project_id = project_details.id
     EndpointManager(directory).delete_endpoints(project_id, user_id)
     neo4j_graph.delete_nodes_by_project_id(project_id)
     delete_folder(directory)

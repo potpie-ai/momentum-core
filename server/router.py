@@ -49,8 +49,6 @@ api_router = APIRouter()
 auth_service = AuthService()
 neo4j_graph = Neo4jGraph()
 
-
-
 @api_router.post("/parse")
 async def parse_directory(
         request: Request, repo_branch: RepoDetails, user=Depends(check_auth)
@@ -77,7 +75,10 @@ async def parse_directory(
             repo = Repo(local_repo_path)
             if repo_branch.branch_name not in repo.heads:
                 raise HTTPException(status_code=400, detail="Branch not found in local repository")
+            current_dir = os.getcwd()
+            os.chdir(local_repo_path)
             repo.git.checkout(repo_branch.branch_name)
+            os.chdir(current_dir)
         except GitCommandError as e:
             raise HTTPException(status_code=400, detail="Failed to access or switch branch in local repository")
     else:
@@ -92,9 +93,12 @@ async def parse_directory(
             raise HTTPException(status_code=400, detail="Repository not found")
 
     message = ""
-    repo_name, branch_name, is_deleted, project_details = get_values(
-        repo_branch, project_manager, user_id
-    )
+    repo_name = repo_branch.repo_name.split("/")[-1] if repo_branch.repo_name else os.path.basename(repo_branch.repo_path)
+    branch_name = repo_branch.branch_name
+    project_details = project_manager.get_project_from_db(f"{repo_name}-{branch_name}", user_id)
+    project_deleted = None
+    if project_details:
+        project_deleted = project_details.is_deleted
 
     try:
         new_project = True
@@ -111,9 +115,9 @@ async def parse_directory(
                 project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
                 message = "Repository doesn't consist of a language currently supported."
         else:
-            dir_details = project_details["directory"]
-            project_id = project_details["id"]
-            if is_deleted:
+            dir_details = project_details.directory
+            project_id = project_details.id
+            if project_deleted:
                 message = project_manager.restore_project(project_id, user_id)
             else:
                 message = "The project has been re-parsed successfully"
@@ -172,6 +176,7 @@ async def parse_directory(
         "message": message,
         "id": project_id
     }
+
 
 @api_router.get("/endpoints/list")
 def get_endpoints(request: Request, project_id: int, user=Depends(check_auth)):

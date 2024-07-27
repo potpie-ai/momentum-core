@@ -990,13 +990,11 @@ def get_node_by_id(node_id, project_id):
     return neo4j_graph.get_node_by_id(node_id, project_id)
 
 
-def get_values(repo_branch, project_manager, user_id):
-    repo_name = repo_branch.repo_name.split("/")[-1]
-    branch_name = repo_branch.branch_name
-    project_details = project_manager.get_project_from_db(
-        f"{repo_name}-{branch_name}", user_id
-    )
+def get_values(repo_details, project_manager, user_id):
+    repo_name = repo_details.repo_name.split("/")[-1] if repo_details.repo_name else os.path.basename(repo_details.repo_path)
+    branch_name = repo_details.branch_name
+    project_details = project_manager.get_project_from_db(f"{repo_name}-{branch_name}", user_id)
     project_deleted = None
     if project_details:
         project_deleted = project_details.is_deleted
-    return repo_name, branch_name, project_deleted, model_to_dict(project_details)
+    return repo_name, branch_name, project_deleted, project_details
