@@ -51,7 +51,7 @@ neo4j_graph = Neo4jGraph()
 
 @api_router.post("/parse")
 async def parse_directory(
-        request: Request, repo_branch: RepoDetails, user=Depends(check_auth)
+        request: Request, repo_details: RepoDetails, user=Depends(check_auth)
 ):
     dir_details = ""
     user_id = user["user_id"]
@@ -60,41 +60,42 @@ async def parse_directory(
     app_auth = None
     project_id = None
 
+    # Check if development mode is enabled
+    if os.getenv("isDevelopmentMode") != "enabled" and repo_details.repo_path:
+        raise HTTPException(status_code=403, detail="Development mode is not enabled, cannot parse local repository.")
+
     project_path = os.getenv("PROJECT_PATH")
-    local_repo_path = os.path.join(project_path, f"{repo_branch.repo_name or os.path.basename(repo_branch.repo_path)}-{user_id}")
+    local_repo_path = os.path.join(project_path, f"{repo_details.repo_name or os.path.basename(repo_details.repo_path)}-{user_id}")
 
-    # Ensure the local repository path is clean
-    if os.path.exists(local_repo_path):
-        shutil.rmtree(local_repo_path)
-
-    if repo_branch.repo_path:
-        if not os.path.exists(repo_branch.repo_path):
+    if repo_details.repo_path:
+        if not os.path.exists(repo_details.repo_path):
             raise HTTPException(status_code=400, detail="Local repository path does not exist")
         try:
-            shutil.copytree(repo_branch.repo_path, local_repo_path)
+            shutil.copytree(repo_details.repo_path, local_repo_path)
             repo = Repo(local_repo_path)
-            if repo_branch.branch_name not in repo.heads:
+            if repo_details.branch_name not in repo.heads:
                 raise HTTPException(status_code=400, detail="Branch not found in local repository")
             current_dir = os.getcwd()
             os.chdir(local_repo_path)
-            repo.git.checkout(repo_branch.branch_name)
+            repo.git.checkout(repo_details.branch_name)
             os.chdir(current_dir)
         except GitCommandError as e:
             raise HTTPException(status_code=400, detail="Failed to access or switch branch in local repository")
     else:
-        response, auth, owner = GithubService.get_github_repo_details(repo_branch.repo_name)
+        response, auth, owner = GithubService.get_github_repo_details(repo_details.repo_name)
         if response.status_code != 200:
             raise HTTPException(status_code=400, detail="Failed to get installation ID")
+        project_id = None
         app_auth = auth.get_installation_auth(response.json()["id"])
         github = Github(auth=app_auth)
         try:
-            repo = Repo.clone_from(repo.clone_url, local_repo_path, branch=repo_branch.branch_name)
+            repo = github.get_repo(repo_details.repo_name)
         except Exception as e:
             raise HTTPException(status_code=400, detail="Repository not found")
 
     message = ""
-    repo_name = repo_branch.repo_name.split("/")[-1] if repo_branch.repo_name else os.path.basename(repo_branch.repo_path)
-    branch_name = repo_branch.branch_name
+    repo_name = repo_details.repo_name.split("/")[-1] if repo_details.repo_name else os.path.basename(repo_details.repo_path)
+    branch_name = repo_details.branch_name
     project_details = project_manager.get_project_from_db(f"{repo_name}-{branch_name}", user_id)
     project_deleted = None
     if project_details:
@@ -121,7 +122,7 @@ async def parse_directory(
                 message = project_manager.restore_project(project_id, user_id)
             else:
                 message = "The project has been re-parsed successfully"
-            if repo_branch.repo_path:
+            if repo_details.repo_path:
                 # Always parse the latest commit for local repositories
                 reparse_cleanup(project_details, user_id)
                 dir_details, project_id, should_parse_repo = setup_project_directory(
@@ -162,21 +163,20 @@ async def parse_directory(
         )
     
     request.state.additional_data = {
-        "repository_name": repo_branch.repo_name or repo_branch.repo_path,
+        "repository_name": repo_details.repo_name or repo_details.repo_path,
         "branch_name": branch_name,
         "project_id": project_id,
-        "size": repo.size / 1024 if repo_branch.repo_name else 0,
+        "size": repo.size / 1024 if repo_details.repo_name else 0,
         "new_project": new_project
     }
     
-    if repo_branch.repo_name:
+    if repo_details.repo_name:
         github.close()
     
     return {
         "message": message,
         "id": project_id
     }
-
 
 @api_router.get("/endpoints/list")
 def get_endpoints(request: Request, project_id: int, user=Depends(check_auth)):
