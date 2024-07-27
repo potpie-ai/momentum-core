@@ -40,3 +40,4 @@ redis
 eventlet
 google-cloud-logging
 certifi
+gitPython

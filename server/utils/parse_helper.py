@@ -3,10 +3,9 @@ import logging
 import os
 import shutil
 import tarfile
-import logging
 import requests
 from fastapi import HTTPException
-
+from git import Repo, GitCommandError
 from server.models.repo_details import ProjectStatusEnum
 from server.utils.graph_db_helper import Neo4jGraph
 from server.endpoint_detection import EndpointManager
@@ -14,7 +13,6 @@ from server.projects import ProjectManager
 
 project_manager = ProjectManager()
 neo4j_graph = Neo4jGraph()
-
 
 def download_and_extract_tarball(owner, repo, branch, target_dir, auth, repo_details, user_id):
     try:
@@ -67,25 +65,39 @@ def download_and_extract_tarball(owner, repo, branch, target_dir, auth, repo_det
 
     return final_dir
 
-   
-
+def clone_repo(repo_url, branch, target_dir):
+    try:
+        repo = Repo.clone_from(repo_url, target_dir, branch=branch)
+    except GitCommandError as e:
+        logging.error(f"Error cloning repository: {e}")
+        raise HTTPException(status_code=400, detail="Failed to clone repository")
+    return repo
 
 def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, project_id=None):
     should_parse_repo = True
-    if branch == repo_details.default_branch:
-        default = True
+    default = False
+    if isinstance(repo_details, Repo):
+        extracted_dir = repo_details.working_tree_dir
+        try:
+            repo_details.git.checkout(branch)
+        except GitCommandError as e:
+            logging.error(f"Error checking out branch: {e}")
+            raise HTTPException(status_code=400, detail=f"Failed to checkout branch {branch}")
+        branch_details = repo_details.head.commit
+        latest_commit_sha = branch_details.hexsha
     else:
-        default = False
-    projects_dir = os.getenv("PROJECT_PATH")
-    extracted_dir = download_and_extract_tarball(
-        owner, repo, branch, projects_dir, auth, repo_details, user_id
-    )
+        if branch == repo_details.default_branch:
+            default = True
+        extracted_dir = download_and_extract_tarball(
+            owner, repo, branch, os.getenv("PROJECT_PATH"), auth, repo_details, user_id
+        )
+        branch_details = repo_details.get_branch(branch)
+        latest_commit_sha = branch_details.commit.sha
+
     momentum_dir = os.path.join(extracted_dir, ".momentum")
     os.makedirs(momentum_dir, exist_ok=True)
     with open(os.path.join(momentum_dir, "momentum.db"), "w") as fp:
         pass
-    branch_details = repo_details.get_branch(branch)
-    latest_commit_sha = branch_details.commit.sha
 
     repo_metadata = extract_repository_metadata(repo_details)
     python_percentage = (repo_metadata["languages"]["breakdown"]["Python"] /
@@ -96,6 +108,7 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
         should_parse_repo = False
     else:
         repo_metadata['error_message'] = None
+    
     project_id = project_manager.register_project(
         extracted_dir,
         f"{repo}-{branch}",
@@ -110,7 +123,6 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
     project_manager.update_project_status(project_id, ProjectStatusEnum.CREATED)
     return extracted_dir, project_id, should_parse_repo
 
-
 def reparse_cleanup(project_details, user_id):
     directory = project_details["directory"]
     project_id = project_details["id"]
@@ -118,10 +130,69 @@ def reparse_cleanup(project_details, user_id):
     neo4j_graph.delete_nodes_by_project_id(project_id)
     delete_folder(directory)
 
-
 def extract_repository_metadata(repo):
-    languages = repo.get_languages()
+    if isinstance(repo, Repo):
+        metadata = extract_local_repo_metadata(repo)
+    else:
+        metadata = extract_remote_repo_metadata(repo)
+    return metadata
 
+def extract_local_repo_metadata(repo):
+    languages = get_local_repo_languages(repo.working_tree_dir)
+    total_bytes = sum(languages.values())
+
+    metadata = {
+        "basic_info": {
+            "full_name": os.path.basename(repo.working_tree_dir),
+            "description": None,
+            "created_at": None,
+            "updated_at": None,
+            "default_branch": repo.head.ref.name,
+        },
+        "metrics": {
+            "size": get_directory_size(repo.working_tree_dir),
+            "stars": None,
+            "forks": None,
+            "watchers": None,
+            "open_issues": None,
+        },
+        "languages": {
+            "breakdown": languages,
+            "total_bytes": total_bytes,
+        },
+        "commit_info": {
+            "total_commits": len(list(repo.iter_commits()))
+        },
+        "contributors": {
+            "count": len(list(repo.iter_commits('--all'))),
+        },
+        "topics": [],
+    }
+
+    return metadata
+
+def get_local_repo_languages(path):
+    total_bytes = 0
+    python_bytes = 0
+
+    for dirpath, _, filenames in os.walk(path):
+        for filename in filenames:
+            file_extension = os.path.splitext(filename)[1]
+            file_path = os.path.join(dirpath, filename)
+            file_size = os.path.getsize(file_path)
+            total_bytes += file_size
+            if file_extension == '.py':
+                python_bytes += file_size
+
+    languages = {}
+    if total_bytes > 0:
+        languages['Python'] = python_bytes
+        languages['Other'] = total_bytes - python_bytes
+
+    return languages
+
+def extract_remote_repo_metadata(repo):
+    languages = repo.get_languages()
     total_bytes = sum(languages.values())
 
     metadata = {
@@ -154,14 +225,18 @@ def extract_repository_metadata(repo):
 
     return metadata
 
+def get_directory_size(path):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
 
 def delete_folder(folder_path):
     try:
         if os.path.exists(folder_path) and os.path.isdir(folder_path):
             shutil.rmtree(folder_path, ignore_errors=True)
             logging.info(f"deleted {folder_path}")
-        # else:
-            # raise HTTPException(status_code=404, detail="Project Folder not found")
     except Exception as e:
         logging.exception(f"Error in deleting folder: {str(e)}")
-        # raise HTTPException(status_code=400, detail="Error deleting Project Folder.")

@@ -1,13 +1,17 @@
 from typing import Optional, List
 from enum import Enum
 
-from pydantic import BaseModel
-
+from pydantic import BaseModel, Field, root_validator
 
 class RepoDetails(BaseModel):
-    repo_name: str
+    repo_name: Optional[str] = Field(default=None)
+    repo_path: Optional[str] = Field(default=None)
     branch_name: str
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.repo_name and not self.repo_path:
+            raise ValueError('Either repo_name or repo_path must be provided.')
 
 class EndpointDetails(RepoDetails):
     endpoint_id: str
