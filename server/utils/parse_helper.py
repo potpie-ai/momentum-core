@@ -242,6 +242,9 @@ def get_directory_size(path):
     return total_size
 
 def delete_folder(folder_path):
+    if(os.getenv("isDevelopmentMode") == "enabled"):
+        logging.info(f"Not deleting local git repo to support knowledge graph: {str(e)}")
+        return
     try:
         if os.path.exists(folder_path) and os.path.isdir(folder_path):
             shutil.rmtree(folder_path, ignore_errors=True)
