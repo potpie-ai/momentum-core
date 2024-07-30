@@ -14,8 +14,8 @@ async def check_auth(
 ):
      # Check if the application is in debug mode
     if os.getenv("isDevelopmentMode") == "enabled" and credential is None:
-        request.state.user = {"user_id": 'momentum'}
-        return {"user_id":'momentum'}
+        request.state.user = {"user_id": os.getenv("defaultUsername")}
+        return {"user_id":os.getenv("defaultUsername")}
     else:
         if credential is None:
             raise HTTPException(

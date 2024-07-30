@@ -1,4 +1,5 @@
 import json
+import os
 
 from datetime import datetime
 
@@ -70,8 +71,8 @@ async def usage(user=Depends(check_auth)):
 
 def setup_dummy_user():
     user = CreateUser(
-        uid= 'momentum',
-        email="testing@momentum.sh",
+        uid= os.getenv("defaultUsername"),
+        email="support@momentum.sh",
         display_name="Dummy User",
         email_verified=True,
         created_at=datetime.utcnow(),

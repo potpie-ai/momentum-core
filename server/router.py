@@ -67,7 +67,7 @@ async def parse_directory(
         raise HTTPException(status_code=403, detail="Development mode is not enabled, cannot parse local repository.")
     
      # Check if development mode is enabled
-    if user_id == "momentum" and repo_details.repo_name:
+    if user_id == os.getenv("defaultUsername") and repo_details.repo_name:
         raise HTTPException(status_code=403, detail="Cannot parse remote repository without auth token")
 
     project_path = os.getenv("PROJECT_PATH")
@@ -219,8 +219,7 @@ def get_blast_radius_details(
     repo_path = project_details.get("directory")
     github = None
 
-    is_local_repo = user_id == "momentum" and repo_path and os.path.exists(repo_path)
-    print("is_local_repo",is_local_repo)
+    is_local_repo = user_id == os.getenv("defaultUsername") and repo_path and os.path.exists(repo_path)
     if is_local_repo:
         try:
             repo = Repo(repo_path)
