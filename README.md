@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://pypi.org/project/momentum-cli/">
     <img src="https://img.shields.io/pypi/v/momentum-cli" alt="pypi package">
-  </a>
+  </a!
   <a href="https://github.com/getmomentum/momentum-core/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/getmomentum/momentum-core" alt="Apache 2.0">
   </a>
@@ -29,7 +29,10 @@
 
 <p align="center">
   <br />
-  <a href="https://docs.momentum.sh" rel="dofollow"><strong>Explore the docs »</strong></a>
+  <a href="https://app.momentum.sh" rel="dofollow"><strong>Get started in a single click!</strong></a>
+  <br />
+  <br />
+  <a href="https://docs.momentum.sh" rel="dofollow">Explore the docs</a>
   <br />
 
 <br/>
