@@ -13,7 +13,7 @@ async def check_auth(
     ),
 ):
      # Check if the application is in debug mode
-    if os.getenv("isDevelopmentMode") == "enabled":
+    if os.getenv("isDevelopmentMode") == "enabled" and credential is None:
         request.state.user = {"user_id": 'momentum'}
         return {"user_id":'momentum'}
     else:

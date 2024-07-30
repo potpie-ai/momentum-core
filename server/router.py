@@ -3,6 +3,8 @@ import shutil
 import logging
 import traceback
 from typing import List, Optional
+import difflib
+
 
 from git import Repo, GitCommandError
 
@@ -63,6 +65,10 @@ async def parse_directory(
     # Check if development mode is enabled
     if os.getenv("isDevelopmentMode") != "enabled" and repo_details.repo_path:
         raise HTTPException(status_code=403, detail="Development mode is not enabled, cannot parse local repository.")
+    
+     # Check if development mode is enabled
+    if user_id == "momentum" and repo_details.repo_name:
+        raise HTTPException(status_code=403, detail="Cannot parse remote repository without auth token")
 
     project_path = os.getenv("PROJECT_PATH")
     local_repo_path = os.path.join(project_path, f"{repo_details.repo_name or os.path.basename(repo_details.repo_path)}-{user_id}")
@@ -204,50 +210,100 @@ def get_blast_radius_details(
     patches_dict = {}
     user_id = user["user_id"]
     project_details = project_manager.get_project_repo_details_from_db(project_id, user_id)
-    if project_details is not None:
-        repo_name = project_details["repo_name"]
-        branch_name = project_details["branch_name"]
+
+    if project_details is None:
+        raise HTTPException(status_code=400, detail="Project Details not found.")
+
+    repo_name = project_details["repo_name"]
+    branch_name = project_details["branch_name"]
+    repo_path = project_details.get("directory")
+    github = None
+
+    is_local_repo = user_id == "momentum" and repo_path and os.path.exists(repo_path)
+    print("is_local_repo",is_local_repo)
+    if is_local_repo:
+        try:
+            repo = Repo(repo_path)
+            if branch_name not in repo.heads:
+                raise HTTPException(status_code=400, detail="Branch not found in local repository")
+            repo.git.checkout(branch_name)
+            repo_details = {
+                "name": repo_name,
+                "path": repo_path
+            }
+        except GitCommandError:
+            raise HTTPException(status_code=400, detail="Failed to access or switch branch in local repository")
+    else:
         response, auth, owner = GithubService.get_github_repo_details(repo_name)
         app_auth = auth.get_installation_auth(response.json()['id'])
         github = Github(auth=app_auth)
         try:
             repo = github.get_repo(repo_name)
+            repo_details = repo
+        except Exception:
+            raise HTTPException(status_code=400, detail="Repository not found")
+
+    try:
+        if is_local_repo:
+            base_commit = repo.commit(base_branch)
+            branch_commit = repo.commit(branch_name)
+
+            added_commits = sum(1 for _ in repo.iter_commits(f"{base_branch}..{branch_name}"))
+            additions = deletions = 0
+
+            for diff_item in base_commit.diff(branch_commit):
+                if diff_item.a_blob and diff_item.b_blob:
+                    a_blob = diff_item.a_blob.data_stream.read().decode('utf-8').splitlines(keepends=True)
+                    b_blob = diff_item.b_blob.data_stream.read().decode('utf-8').splitlines(keepends=True)
+                    diff = difflib.unified_diff(a_blob, b_blob, lineterm='')
+                    patch = '\n'.join(diff)
+                    patches_dict[diff_item.a_path] = patch
+                    for line in patch.split('\n'):
+                        if line.startswith('+') and not line.startswith('+++'):
+                            additions += 1
+                        elif line.startswith('-') and not line.startswith('---'):
+                            deletions += 1
+                elif diff_item.a_blob:
+                    deletions += sum(1 for line in diff_item.a_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
+                elif diff_item.b_blob:
+                    additions += sum(1 for line in diff_item.b_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
+        else:
             git_diff = repo.compare(base_branch, branch_name)
             added_commits = git_diff.total_commits
             additions = sum(file.additions for file in git_diff.files)
             deletions = sum(file.deletions for file in git_diff.files)
-            lines_impacted = additions + deletions
-            logging.info(f"project_id: {project_id}, added_commits: {added_commits}, lines_impacted: {lines_impacted}")
-            request.state.additional_data = {
-                "added_commits": added_commits,
-                "lines_impacted": lines_impacted
-            }
             patches_dict = {file.filename: file.patch for file in git_diff.files if file.patch}
-        except Exception as exp:
-            raise HTTPException(status_code=400, detail="Repository not found")
-        finally:
-            if project_details is not None:
-                directory = project_details["directory"]
-                identifiers = []
-                try:
-                    identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
-                except Exception as e:
-                    logging.error(f"project_id: {project_id}, error: {str(e)}")
-                    if "path not in the working tree" in str(e):
-                        base_branch = "main"
-                        identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
-                if identifiers.count == 0:
+
+        lines_impacted = additions + deletions
+        logging.info(f"project_id: {project_id}, added_commits: {added_commits}, lines_impacted: {lines_impacted}")
+        request.state.additional_data = {
+            "added_commits": added_commits,
+            "lines_impacted": lines_impacted
+        }
+
+    except Exception:
+        raise HTTPException(status_code=400, detail="Repository not found")
+    finally:
+        if project_details is not None:
+            directory = project_details["directory"]
+            identifiers = []
+            try:
+                identifiers = get_updated_function_list(patches_dict, directory, repo_details, branch_name)
+            except Exception as e:
+                logging.error(f"project_id: {project_id}, error: {str(e)}")
+                if "path not in the working tree" in str(e):
+                    base_branch = "main"
+                    identifiers = get_updated_function_list(patches_dict, directory, repo_details, branch_name)
+            if len(identifiers) == 0:
+                if github:
                     github.close()
-                    return []
-                paths = get_paths_from_identifiers(
-                    identifiers, directory, project_details["id"]
-                )
+                return []
+            paths = get_paths_from_identifiers(identifiers, directory, project_details["id"])
+            if github:
                 github.close()
-                return paths
-    else:
-        raise HTTPException(status_code=400, detail="Project Details not found.")
+            return paths
 
-
+    
 @api_router.get("/endpoints/flow/graph")
 def get_flow_graph(
         project_id: int, endpoint_id: str, user=Depends(check_auth)
