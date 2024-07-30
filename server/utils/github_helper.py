@@ -49,7 +49,9 @@ class GithubService:
         try:
             project_id = node["project_id"]
             project_manager = ProjectManager()
-            repo_name, branch_name = project_manager.get_repo_and_branch_name(project_id=project_id)
+            repo_details = project_manager.get_repo_and_branch_name(project_id=project_id)
+            repo_name = repo_details[0]
+            branch_name = repo_details[1]
 
             file_path = node["id"].split(':')[0].lstrip('/')
             start_line = node["start"]
@@ -65,7 +67,7 @@ class GithubService:
             app_auth = auth.get_installation_auth(response.json()["id"])
             github = Github(auth=app_auth)
             repo = github.get_repo(repo_name)
-            file_contents = repo.get_contents(file_path.replace("\\","/"), ref=branch_name)
+            file_contents = repo.get_contents(file_path, ref=branch_name)
             decoded_content = base64.b64decode(file_contents.content).decode('utf-8')
             lines = decoded_content.split('\n')
             method_lines = lines[start_line - 1:end_line]
@@ -73,7 +75,7 @@ class GithubService:
         except Exception as e:
             logger.error(f"An error occurred: {e}", exc_info=True)
         finally:
-            github.close()
+            #github.close()
             return method_content
         
     @staticmethod
