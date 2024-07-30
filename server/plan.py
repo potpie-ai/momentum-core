@@ -25,6 +25,7 @@ from server.parse import get_flow, get_graphical_flow_structure, get_node
 from server.projects import ProjectManager
 from server.utils.ai_helper import llm_call, print_messages, get_llm_client
 from server.utils.github_helper import GithubService
+from server.utils.local_git_service import LocalGitService
 
 project_manager = ProjectManager()
 
@@ -43,6 +44,7 @@ class Plan:
             user_id,
             os.environ["OPENAI_MODEL_REASONING"],
         )
+        self.user_id = user_id
         self.explain_client = self.openai_client
         self.plan_client = self.user_pref_openai_client
         self.test_client = self.user_pref_openai_client
@@ -170,8 +172,36 @@ To help integration test the flow above:
             return elaboration.content
         else:
             return plan
+        
+    async def _get_explanation_for_function_in_local_code(self, function_identifier, node, project_id):
+        with SessionManager() as db:
+            if "project_id" in node:
+                code = LocalGitService.fetch_method_from_repo(node)
+            code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
+            explanation = crud_utils.get_explanation_by_identifier(db, function_identifier, code_hash)
 
+            if explanation:
+                if explanation.project_id != project_id:
+                    new_explanation = Explanation(
+                        identifier=function_identifier,
+                        hash=code_hash,
+                        explanation=explanation.explanation,
+                        project_id=project_id,
+                    )
+                    crud_utils.create_explanation(db, new_explanation)
+            else:
+                code = LocalGitService.fetch_method_from_repo(node)
+                explanation_text = await self.explanation_from_function(code)
+                new_explanation = Explanation(
+                    identifier=function_identifier,
+                    hash=code_hash,
+                    explanation=explanation_text,
+                    project_id=project_id,
+                )
+                crud_utils.create_explanation(db, new_explanation)
 
+                explanation = new_explanation
+            return explanation.explanation if explanation else None
 
     async def _get_explanation_for_function(self, function_identifier, node, project_id):
         with SessionManager() as db:
@@ -207,6 +237,10 @@ To help integration test the flow above:
 
     def _get_code_for_node(self, node):
         return GithubService.fetch_method_from_repo(node)
+    
+    def _get_code_for_node_for_local_repo(self, node):
+        code=  LocalGitService.fetch_method_from_repo(node)
+        return code
 
     def _extract_json(self, text):
         json_data = None
@@ -341,16 +375,29 @@ To help integration test the flow above:
         context = ""
         for function in flow:
             node = get_node(function, project_details)
-            context += (
-                "\n"
-                + function
-                + "\n code: \n"
-                + self._get_code_for_node(node)
-                + "\n explanation: \n"
-                + await self._get_explanation_for_function(
-                    function, node, project_details["id"]
+            is_local_repo = os.getenv("isDevelopmentMode") == "enabled" and self.user_id == os.getenv("defaultUsername")
+            if(is_local_repo):
+                context += (
+                    "\n"
+                    + function
+                    + "\n code: \n"
+                    + self._get_code_for_node_for_local_repo(node)
+                    + "\n explanation: \n"
+                    + await self._get_explanation_for_function_in_local_code(
+                        function, node, project_details["id"]
+                    )
                 )
-            )
+            else:
+                context += (
+                    "\n"
+                    + function
+                    + "\n code: \n"
+                    + self._get_code_for_node(node)
+                    + "\n explanation: \n"
+                    + await self._get_explanation_for_function(
+                        function, node, project_details["id"]
+                    )
+                )
         context = (
             "The structure of the code represented as a tree in json"
             f" format:\n {graph}"

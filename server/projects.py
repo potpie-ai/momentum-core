@@ -98,7 +98,7 @@ class ProjectManager:
         with SessionManager() as db:
             project = crud_utils.get_project_by_id(db, project_id)
             if project:
-                return project.repo_name, project.branch_name
+                return project.repo_name, project.branch_name , project.directory
             else:
                 return None
 
