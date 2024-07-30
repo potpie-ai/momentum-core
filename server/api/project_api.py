@@ -14,12 +14,12 @@ from server.utils.APIRouter import APIRouter
 
 api_router_project = APIRouter()
 project_manager = ProjectManager()
+github_private_key = os.getenv("GITHUB_PRIVATE_KEY")
 
-if os.getenv("isDevelopmentMode") == "enabled":
-    github=None
+if not github_private_key:
+    github = None
 else:
-    github = Github(os.environ["GITHUB_PRIVATE_KEY"])
-
+    github = Github(github_private_key)
 
 def get_github_client(repo_name: str):
     private_key = (
