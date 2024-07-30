@@ -468,14 +468,13 @@ class EndpointManager:
                 depends = router_info.get("depends", [])
                 path = self.get_qualified_endpoint_name(path, prefix)
                 endpoint = db.query(Endpoint).filter(
-                    Endpoint.path == path,
                     Endpoint.identifier == identifier,
                     Endpoint.project_id == project_id
                 ).first()
                 if not endpoint:
                     endpoint = Endpoint(path=path, identifier=identifier, project_id=project_id)
                     db.add(endpoint)
-                    db.commit()
+                db.commit()
             for dependency in depends:
                 neo4j_graph.connect_nodes(
                     identifier, dependency, project_id, {"action": "calls"}
