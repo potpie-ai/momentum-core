@@ -19,12 +19,11 @@ def _parse_diff_detail(patch_details, repo_path):
                 try:
                     add_start_info = parts[2][1:]  
                     if ',' in add_start_info:
-                        add_start_line, add_num_lines = map(int, add_start_info.split(','))
+                        add_start_line,_ = map(int, add_start_info.split(','))
                     else:
                         add_start_line = int(add_start_info)
-                        add_num_lines = 1
                     current_line_number = add_start_line
-                except ValueError as e:
+                except ValueError:
                     current_line_number = None
             elif line.startswith('+') and current_line_number is not None:
                 changed_files[current_file].add(current_line_number)

@@ -105,16 +105,6 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
         pass
 
     repo_metadata = extract_repository_metadata(repo_details)
-    # total_bytes = repo_metadata["languages"]["total_bytes"]
-    # python_bytes = repo_metadata["languages"]["breakdown"].get("Python", 0)
-
-    # python_percentage = (python_bytes / total_bytes * 100) if total_bytes > 0 else 0
-    # print(f"Python Percentage: {python_percentage}")
-
-    # if python_percentage < 50:
-    #     repo_metadata['error_message'] = "Repository doesn't consist of a language currently supported."
-    #     should_parse_repo = False
-    # else:
     repo_metadata['error_message'] = None
     
     project_id = project_manager.register_project(
@@ -243,7 +233,7 @@ def get_directory_size(path):
 
 def delete_folder(folder_path):
     if(os.getenv("isDevelopmentMode") == "enabled"):
-        logging.info(f"Not deleting local git repo to support knowledge graph")
+        logging.info("Not deleting local git repo to support knowledge graph")
         return
     try:
         if os.path.exists(folder_path) and os.path.isdir(folder_path):

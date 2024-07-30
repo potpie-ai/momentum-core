@@ -80,5 +80,5 @@ def setup_dummy_user():
         provider_info={},
         provider_username="self",
     )
-    uid, message, error = user_handler.create_user(user)
+    uid, _ , _ = user_handler.create_user(user)
     logging.info(f"Created dummy user with uid: {uid}")

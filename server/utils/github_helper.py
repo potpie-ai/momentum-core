@@ -74,9 +74,8 @@ class GithubService:
             method_content = '\n'.join(method_lines)
         except Exception as e:
             logger.error(f"An error occurred: {e}", exc_info=True)
-        finally:
-            #github.close()
-            return method_content
+
+        return method_content
         
     @staticmethod
     def comment_on_pr(repo_name, issue_number, comment, installation_auth):

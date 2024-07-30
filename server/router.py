@@ -51,6 +51,8 @@ api_router = APIRouter()
 auth_service = AuthService()
 neo4j_graph = Neo4jGraph()
 
+repo_not_found_message = "Repository not found"
+
 @api_router.post("/parse")
 async def parse_directory(
         request: Request, repo_details: RepoDetails, user=Depends(check_auth)
@@ -97,7 +99,7 @@ async def parse_directory(
         try:
             repo = github.get_repo(repo_details.repo_name)
         except Exception as e:
-            raise HTTPException(status_code=400, detail="Repository not found")
+            raise HTTPException(status_code=400, detail=repo_not_found_message)
 
     message = ""
     repo_name = repo_details.repo_name.split("/")[-1] if repo_details.repo_name else os.path.basename(repo_details.repo_path)
@@ -240,7 +242,7 @@ def get_blast_radius_details(
             repo = github.get_repo(repo_name)
             repo_details = repo
         except Exception:
-            raise HTTPException(status_code=400, detail="Repository not found")
+            raise HTTPException(status_code=400, detail=repo_not_found_message)
 
     try:
         if is_local_repo:
@@ -263,9 +265,9 @@ def get_blast_radius_details(
                         elif line.startswith('-') and not line.startswith('---'):
                             deletions += 1
                 elif diff_item.a_blob:
-                    deletions += sum(1 for line in diff_item.a_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
+                    deletions += sum(1 for _ in diff_item.a_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
                 elif diff_item.b_blob:
-                    additions += sum(1 for line in diff_item.b_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
+                    additions += sum(1 for _ in diff_item.b_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
         else:
             git_diff = repo.compare(base_branch, branch_name)
             added_commits = git_diff.total_commits
@@ -281,7 +283,7 @@ def get_blast_radius_details(
         }
 
     except Exception:
-        raise HTTPException(status_code=400, detail="Repository not found")
+        raise HTTPException(status_code=400, detail=repo_not_found_message)
     finally:
         if project_details is not None:
             directory = project_details["directory"]
