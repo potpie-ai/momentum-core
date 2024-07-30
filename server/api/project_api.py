@@ -1,6 +1,7 @@
 import logging
 import os
 from typing import Optional
+from dotenv import load_dotenv
 
 import requests
 from fastapi import Depends, HTTPException
@@ -12,15 +13,18 @@ from server.auth import check_auth
 from server.projects import ProjectManager
 from server.utils.APIRouter import APIRouter
 
+load_dotenv(override=True)
+
 api_router_project = APIRouter()
 project_manager = ProjectManager()
-github_private_key = os.getenv("GITHUB_PRIVATE_KEY")
+github_app_id = os.getenv("GITHUB_APP_ID")
 
-if not github_private_key:
-    github = None
+
+if github_app_id is not None:
+    github = Github(os.getenv("GITHUB_PRIVATE_KEY"))
 else:
-    github = Github(github_private_key)
-
+    github = None
+    
 def get_github_client(repo_name: str):
     private_key = (
         "-----BEGIN RSA PRIVATE KEY-----\n"
