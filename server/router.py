@@ -244,6 +244,7 @@ def get_blast_radius_details(
         except Exception:
             raise HTTPException(status_code=400, detail=repo_not_found_message)
 
+    
     try:
         if is_local_repo:
             base_commit = repo.commit(base_branch)
@@ -251,6 +252,7 @@ def get_blast_radius_details(
 
             added_commits = sum(1 for _ in repo.iter_commits(f"{base_branch}..{branch_name}"))
             additions = deletions = 0
+            patches_dict = {}
 
             for diff_item in base_commit.diff(branch_commit):
                 if diff_item.a_blob and diff_item.b_blob:
@@ -268,19 +270,27 @@ def get_blast_radius_details(
                     deletions += sum(1 for _ in diff_item.a_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
                 elif diff_item.b_blob:
                     additions += sum(1 for _ in diff_item.b_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
+
+            lines_impacted = additions + deletions
+            logging.info(f"project_id: {project_id}, added_commits: {added_commits}, lines_impacted: {lines_impacted}")
+            request.state.additional_data = {
+                "added_commits": added_commits,
+                "lines_impacted": lines_impacted
+            }
         else:
+            repo = github.get_repo(repo_name)
             git_diff = repo.compare(base_branch, branch_name)
             added_commits = git_diff.total_commits
             additions = sum(file.additions for file in git_diff.files)
             deletions = sum(file.deletions for file in git_diff.files)
+            lines_impacted = additions + deletions
+            logging.info(f"project_id: {project_id}, added_commits: {added_commits}, lines_impacted: {lines_impacted}")
+            request.state.additional_data = {
+                "added_commits": added_commits,
+                "lines_impacted": lines_impacted
+            }
             patches_dict = {file.filename: file.patch for file in git_diff.files if file.patch}
 
-        lines_impacted = additions + deletions
-        logging.info(f"project_id: {project_id}, added_commits: {added_commits}, lines_impacted: {lines_impacted}")
-        request.state.additional_data = {
-            "added_commits": added_commits,
-            "lines_impacted": lines_impacted
-        }
 
     except Exception:
         raise HTTPException(status_code=400, detail=repo_not_found_message)
