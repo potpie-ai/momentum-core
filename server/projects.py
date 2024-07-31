@@ -163,7 +163,6 @@ class ProjectManager:
                     is_local_repo = os.getenv("isDevelopmentMode") == "enabled" and user_id == os.getenv("defaultUsername")
                     if is_local_repo:
                         project_path = self.get_project_repo_details_from_db(project_id,user_id)['directory']
-                        print("project_path",project_path)
                         if os.path.exists(project_path):
                             shutil.rmtree(project_path)
                             logging.info(f"Deleted local project folder: {project_path}")
