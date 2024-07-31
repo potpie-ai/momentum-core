@@ -2,6 +2,7 @@ import json
 import os
 
 from datetime import datetime
+from dotenv import load_dotenv
 
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
@@ -21,6 +22,7 @@ from server.models.user import CreateUser
 import logging
 
 auth_router = APIRouter()
+load_dotenv(override=True)
 
 @auth_router.post("/login")
 async def login(login_request: LoginRequest):
@@ -72,7 +74,7 @@ async def usage(user=Depends(check_auth)):
 def setup_dummy_user():
     user = CreateUser(
         uid= os.getenv("defaultUsername"),
-        email="support@momentum.sh",
+        email=os.getenv("defaultUsername") + "@momentum.sh",
         display_name="Dummy User",
         email_verified=True,
         created_at=datetime.utcnow(),

@@ -6,7 +6,8 @@ from server.schemas import Project
 import logging
 from fastapi import HTTPException
 from datetime import datetime
-
+import os
+import shutil
 class ProjectManager:
     def register_project(self, directory: str, project_name: str, repo_name: str, branch_name: str, user_id: str, commit_id: str, default: bool,
                          project_metadata, project_id: int = None):
@@ -158,7 +159,20 @@ class ProjectManager:
                         status_code=404,
                         detail="No matching project found or project is already deleted."
                     )
-                logging.info(f"Project {project_id} deleted successfully.")
+                else:
+                    is_local_repo = os.getenv("isDevelopmentMode") == "enabled" and user_id == os.getenv("defaultUsername")
+                    if is_local_repo:
+                        project_path = self.get_project_repo_details_from_db(project_id,user_id)['directory']
+                        print("project_path",project_path)
+                        if os.path.exists(project_path):
+                            shutil.rmtree(project_path)
+                            logging.info(f"Deleted local project folder: {project_path}")
+                        else:
+                            logging.warning(f"Local project folder not found: {project_path}")
+
+
+                    logging.info(f"Project {project_id} deleted successfully.")
+
             except Exception as e:
                 db.rollback()
                 raise HTTPException(
