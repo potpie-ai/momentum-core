@@ -1,4 +1,5 @@
 #!/bin/bash
+source .env
 
 # Bring up all services except momentum and knowledge_graph
 docker-compose up -d
@@ -14,7 +15,7 @@ cd knowledge_graph
 
 # Start celery worker and main application
 echo "Starting Celery worker..."
-celery --app=inferflow worker -l INFO --pool solo -Q dev &
+celery --app=inferflow worker -l INFO --pool solo -Q ${CELERY_QUEUE_NAME} &
 
 echo "Starting main application..."
 python3 main.py &
