@@ -67,7 +67,7 @@ class GithubService:
             app_auth = auth.get_installation_auth(response.json()["id"])
             github = Github(auth=app_auth)
             repo = github.get_repo(repo_name)
-            file_contents = repo.get_contents(file_path, ref=branch_name)
+            file_contents = repo.get_contents(file_path.replace("\\","/"), ref=branch_name)
             decoded_content = base64.b64decode(file_contents.content).decode('utf-8')
             lines = decoded_content.split('\n')
             method_lines = lines[start_line - 1:end_line]
