@@ -65,14 +65,6 @@ def download_and_extract_tarball(owner, repo, branch, target_dir, auth, repo_det
 
     return final_dir
 
-def clone_repo(repo_url, branch, target_dir):
-    try:
-        repo = Repo.clone_from(repo_url, target_dir, branch=branch)
-    except GitCommandError as e:
-        logging.error(f"Error cloning repository: {e}")
-        raise HTTPException(status_code=400, detail="Failed to clone repository")
-    return repo
-
 def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, project_id=None):
     should_parse_repo = True
     default = False
@@ -107,6 +99,16 @@ def setup_project_directory(owner, repo, branch, auth, repo_details, user_id, pr
     repo_metadata = extract_repository_metadata(repo_details)
     repo_metadata['error_message'] = None
     
+    if(os.getenv("isDevelopmentMode") == "disabled"):
+        python_percentage = (repo_metadata["languages"]["breakdown"]["Python"] /
+                            repo_metadata["languages"]["total_bytes"] * 100) \
+            if "Python" in repo_metadata["languages"]["breakdown"] else 0
+        if python_percentage < 50:
+            repo_metadata['error_message'] = "Repository doesn't consist of a language currently supported."
+            should_parse_repo = False
+        else:
+            repo_metadata['error_message'] = None
+
     project_id = project_manager.register_project(
         extracted_dir,
         f"{repo}-{branch}",

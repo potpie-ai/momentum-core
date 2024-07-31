@@ -68,7 +68,7 @@ async def parse_directory(
     if os.getenv("isDevelopmentMode") != "enabled" and repo_details.repo_path:
         raise HTTPException(status_code=403, detail="Development mode is not enabled, cannot parse local repository.")
     
-     # Check if development mode is enabled
+    # Check if user is default user and repo_name is provided
     if user_id == os.getenv("defaultUsername") and repo_details.repo_name:
         raise HTTPException(status_code=403, detail="Cannot parse remote repository without auth token")
 
@@ -85,29 +85,28 @@ async def parse_directory(
                 raise HTTPException(status_code=400, detail="Branch not found in local repository")
             current_dir = os.getcwd()
             os.chdir(local_repo_path)
-            repo.git.checkout(repo_details.branch_name)
-            os.chdir(current_dir)
+            try:
+                repo.git.checkout(repo_details.branch_name)
+            finally:
+                os.chdir(current_dir)
         except GitCommandError as e:
             raise HTTPException(status_code=400, detail="Failed to access or switch branch in local repository")
     else:
         response, auth, owner = GithubService.get_github_repo_details(repo_details.repo_name)
         if response.status_code != 200:
             raise HTTPException(status_code=400, detail="Failed to get installation ID")
-        project_id = None
         app_auth = auth.get_installation_auth(response.json()["id"])
         github = Github(auth=app_auth)
         try:
             repo = github.get_repo(repo_details.repo_name)
         except Exception as e:
-            raise HTTPException(status_code=400, detail=repo_not_found_message)
+            raise HTTPException(status_code=400, detail="Repository not found on GitHub")
 
     message = ""
     repo_name = repo_details.repo_name.split("/")[-1] if repo_details.repo_name else os.path.basename(repo_details.repo_path)
     branch_name = repo_details.branch_name
     project_details = project_manager.get_project_from_db(f"{repo_name}-{branch_name}", user_id)
-    project_deleted = None
-    if project_details:
-        project_deleted = project_details.is_deleted
+    project_deleted = project_details.is_deleted if project_details else None
 
     try:
         new_project = True
@@ -117,7 +116,6 @@ async def parse_directory(
             )
             if should_parse_repo:
                 await analyze_directory(dir_details, user_id, project_id)
-                new_project = True
                 message = "The project has been parsed successfully"
                 project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
             else:
@@ -128,9 +126,8 @@ async def parse_directory(
             project_id = project_details.id
             if project_deleted:
                 message = project_manager.restore_project(project_id, user_id)
-            else:
-                message = "The project has been re-parsed successfully"
             if repo_details.repo_path:
+                reparse_cleanup(project_details, user_id)
                 dir_details, project_id, should_parse_repo = setup_project_directory(
                     owner, repo_name, branch_name, app_auth, repo, user_id, project_id
                 )
@@ -157,16 +154,14 @@ async def parse_directory(
                         project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
                         message = "Repository doesn't consist of a language currently supported."
                 else:
-                    return {"message": "No new commits have been added to the branch since the last parsing. The database is up to date.",
-                            "project_id": project_id}
+                    return {
+                        "message": "No new commits have been added to the branch since the last parsing. The database is up to date.",
+                        "project_id": project_id
+                    }
     except Exception as e:
         tb_str = "".join(traceback.format_exception(None, e, e.__traceback__))
-        project_manager.update_project_status(
-            project_id, ProjectStatusEnum.ERROR
-        )
-        raise HTTPException(
-            status_code=500, detail=f"{str(e)}\nTraceback: {tb_str}"
-        )
+        project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
+        raise HTTPException(status_code=500, detail=f"{str(e)}\nTraceback: {tb_str}")
     
     request.state.additional_data = {
         "repository_name": repo_details.repo_name or repo_details.repo_path,
@@ -183,6 +178,7 @@ async def parse_directory(
         "message": message,
         "id": project_id
     }
+
 
 @api_router.get("/endpoints/list")
 def get_endpoints(request: Request, project_id: int, user=Depends(check_auth)):
