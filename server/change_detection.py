@@ -59,12 +59,16 @@ def get_pattern(repo_name, branch_name):
 
 
 def _parse_functions_from_file(file_path, repo_details, branch_name):
-    """Parse a file and build a map of function names to their line ranges."""
-    file_path_extracted = extract_file_name(repo_details.name, branch_name, file_path)
-    content = (repo_details.get_contents(file_path_extracted, ref=branch_name)
-               .decoded_content)
+    if isinstance(repo_details, dict):
+        # Local repository handling
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+    else:
+        # GitHub repository handling
+        file_path_extracted = extract_file_name(repo_details.name, branch_name, file_path)
+        content = repo_details.get_contents(file_path_extracted, ref=branch_name).decoded_content.decode('utf-8')
     
-    tree = parser.parse(content)
+    tree = parser.parse(bytes(content, 'utf-8'))
     root_node = tree.root_node
     functions = {}
 

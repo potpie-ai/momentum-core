@@ -11,10 +11,12 @@ from server.utils.firestore_helper import FirestoreHelper
 
 router = APIRouter()
 
-client = secretmanager.SecretManagerServiceClient()
-
-project_id = os.environ.get("GCP_PROJECT")
-
+if(os.getenv("isDevelopmentMode") == "disabled"):
+    client = secretmanager.SecretManagerServiceClient()
+    project_id = os.environ.get("GCP_PROJECT")
+else:
+    client = None
+    project_id = None
 
 import re
 

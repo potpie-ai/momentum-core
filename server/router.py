@@ -1,7 +1,12 @@
-import json
+import os
+import shutil
 import logging
 import traceback
 from typing import List, Optional
+import difflib
+
+
+from git import Repo, GitCommandError
 
 from server.auth import check_auth
 from server.blast_radius_detection import get_paths_from_identifiers
@@ -46,34 +51,62 @@ api_router = APIRouter()
 auth_service = AuthService()
 neo4j_graph = Neo4jGraph()
 
-
+repo_not_found_message = "Repository not found"
 
 @api_router.post("/parse")
 async def parse_directory(
-        request: Request, repo_branch: RepoDetails, user=Depends(check_auth)
+        request: Request, repo_details: RepoDetails, user=Depends(check_auth)
 ):
     dir_details = ""
-
-    response, auth, owner = GithubService.get_github_repo_details(
-        repo_branch.repo_name
-    )
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=400, detail="Failed to get installation ID"
-        )
-    project_id = None
-    app_auth = auth.get_installation_auth(response.json()["id"])
-    github = Github(auth=app_auth)
-    try:
-        repo = github.get_repo(repo_branch.repo_name)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Repository not found")
     user_id = user["user_id"]
+    repo = None
+    owner = None
+    app_auth = None
+    project_id = None
+
+    # Check if development mode is enabled
+    if os.getenv("isDevelopmentMode") != "enabled" and repo_details.repo_path:
+        raise HTTPException(status_code=403, detail="Development mode is not enabled, cannot parse local repository.")
+    
+    # Check if user is default user and repo_name is provided
+    if user_id == os.getenv("defaultUsername") and repo_details.repo_name:
+        raise HTTPException(status_code=403, detail="Cannot parse remote repository without auth token")
+
+    project_path = os.getenv("PROJECT_PATH")
+    local_repo_path = os.path.join(project_path, f"{repo_details.repo_name or os.path.basename(repo_details.repo_path)}-{user_id}")
+
+    if repo_details.repo_path:
+        if not os.path.exists(repo_details.repo_path):
+            raise HTTPException(status_code=400, detail="Local repository does not exist on given path")
+        try:
+            shutil.copytree(repo_details.repo_path, local_repo_path)
+            repo = Repo(local_repo_path)
+            if repo_details.branch_name not in repo.heads:
+                raise HTTPException(status_code=400, detail="Branch not found in local repository")
+            current_dir = os.getcwd()
+            os.chdir(local_repo_path)
+            try:
+                repo.git.checkout(repo_details.branch_name)
+            finally:
+                os.chdir(current_dir)
+        except GitCommandError as e:
+            raise HTTPException(status_code=400, detail="Failed to access or switch branch in local repository")
+    else:
+        response, auth, owner = GithubService.get_github_repo_details(repo_details.repo_name)
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to get installation ID")
+        app_auth = auth.get_installation_auth(response.json()["id"])
+        github = Github(auth=app_auth)
+        try:
+            repo = github.get_repo(repo_details.repo_name)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail="Repository not found on GitHub")
 
     message = ""
-    repo_name, branch_name, is_deleted, project_details = get_values(
-        repo_branch, project_manager, user_id
-    )
+    repo_name = repo_details.repo_name.split("/")[-1] if repo_details.repo_name else os.path.basename(repo_details.repo_path)
+    branch_name = repo_details.branch_name
+    project_details = project_manager.get_project_from_db(f"{repo_name}-{branch_name}", user_id)
+    project_deleted = project_details.is_deleted if project_details else None
 
     try:
         new_project = True
@@ -83,52 +116,66 @@ async def parse_directory(
             )
             if should_parse_repo:
                 await analyze_directory(dir_details, user_id, project_id)
-                new_project = True
                 message = "The project has been parsed successfully"
                 project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
             else:
                 project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
                 message = "Repository doesn't consist of a language currently supported."
         else:
-            dir_details = project_details["directory"]
-            project_id = project_details["id"]
-            if is_deleted:
+            dir_details = project_details.directory
+            project_id = project_details.id
+            if project_deleted:
                 message = project_manager.restore_project(project_id, user_id)
-            else:
-                message = "The project has been re-parsed successfully"
-            if GithubService.check_is_commit_added(repo, project_details, branch_name):
-                reparse_cleanup(project_details, user_id)
-                dir_details, project_id, should_parse_repo = setup_project_directory(owner, repo_name,
-                                                                  branch_name, app_auth, repo, user_id,
-                                                                  project_id)
-                if should_parse_repo:
-                    await analyze_directory(dir_details, user_id, project_id)
-                    new_project = False
-                    message = "The project has been re-parsed successfully"
-                    project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
-                else:
-                    project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
-                    message = "Repository doesn't consist of a language currently supported."
-            else:
-                return {"message": "No new commits have been added to the branch "
-                                   "since the last parsing. The database is up to date.",
-                        "project_id": project_id}
+            else:  #offline repo logic
+                if repo_details.repo_path:
+                    reparse_cleanup(project_details, user_id)
+                    dir_details, project_id, should_parse_repo = setup_project_directory(
+                        owner, repo_name, branch_name, app_auth, repo, user_id, project_id
+                    )
+                    if should_parse_repo:
+                        await analyze_directory(dir_details, user_id, project_id)
+                        new_project = False
+                        message = "The project has been re-parsed successfully"
+                        project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
+                    else:
+                        project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
+                        message = "Repository doesn't consist of a language currently supported."
+                else: #github repo logic
+                    if GithubService.check_is_commit_added(repo, project_details, branch_name):
+                        reparse_cleanup(project_details, user_id)
+                        dir_details, project_id, should_parse_repo = setup_project_directory(
+                            owner, repo_name, branch_name, app_auth, repo, user_id, project_id
+                        )
+                        if should_parse_repo:
+                            await analyze_directory(dir_details, user_id, project_id)
+                            new_project = False
+                            message = "The project has been re-parsed successfully"
+                            project_manager.update_project_status(project_id, ProjectStatusEnum.READY)
+                        else:
+                            project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
+                            message = "Repository doesn't consist of a language currently supported."
+                    else:
+                        return {
+                            "message": "No new commits have been added to the branch since the last parsing. The database is up to date.",
+                            "project_id": project_id
+                        }
+                    
     except Exception as e:
         tb_str = "".join(traceback.format_exception(None, e, e.__traceback__))
-        project_manager.update_project_status(
-            project_id, ProjectStatusEnum.ERROR
-        )
-        raise HTTPException(
-            status_code=500, detail=f"{str(e)}\nTraceback: {tb_str}"
-        )
+        project_manager.update_project_status(project_id, ProjectStatusEnum.ERROR)
+        raise HTTPException(status_code=500, detail=f"{str(e)}\nTraceback: {tb_str}")
+    
     request.state.additional_data = {
-        "repository_name": repo_name,
+        "repository_name": repo_details.repo_name or repo_details.repo_path,
         "branch_name": branch_name,
         "project_id": project_id,
-        "size": repo.size / 1024,
+        "size": repo.size / 1024 if repo_details.repo_name else 0,
         "new_project": new_project
     }
-    github.close()
+    
+    if repo_details.repo_name:
+        github.close()
+    
     return {
         "message": message,
         "id": project_id
@@ -163,13 +210,72 @@ def get_blast_radius_details(
     patches_dict = {}
     user_id = user["user_id"]
     project_details = project_manager.get_project_repo_details_from_db(project_id, user_id)
-    if project_details is not None:
-        repo_name = project_details["repo_name"]
-        branch_name = project_details["branch_name"]
+
+    if project_details is None:
+        raise HTTPException(status_code=400, detail="Project Details not found.")
+
+    repo_name = project_details["repo_name"]
+    branch_name = project_details["branch_name"]
+    repo_path = project_details.get("directory")
+    github = None
+
+    is_local_repo = user_id == os.getenv("defaultUsername") and repo_path and os.path.exists(repo_path)
+    if is_local_repo:
+        try:
+            repo = Repo(repo_path)
+            if branch_name not in repo.heads:
+                raise HTTPException(status_code=400, detail="Branch not found in local repository")
+            repo.git.checkout(branch_name)
+            repo_details = {
+                "name": repo_name,
+                "path": repo_path
+            }
+        except GitCommandError:
+            raise HTTPException(status_code=400, detail="Failed to access or switch branch in local repository")
+    else:
         response, auth, owner = GithubService.get_github_repo_details(repo_name)
         app_auth = auth.get_installation_auth(response.json()['id'])
         github = Github(auth=app_auth)
         try:
+            repo = github.get_repo(repo_name)
+            repo_details = repo
+        except Exception:
+            raise HTTPException(status_code=400, detail=repo_not_found_message)
+
+    
+    try:
+        if is_local_repo:
+            base_commit = repo.commit(base_branch)
+            branch_commit = repo.commit(branch_name)
+
+            added_commits = sum(1 for _ in repo.iter_commits(f"{base_branch}..{branch_name}"))
+            additions = deletions = 0
+            patches_dict = {}
+
+            for diff_item in base_commit.diff(branch_commit):
+                if diff_item.a_blob and diff_item.b_blob:
+                    a_blob = diff_item.a_blob.data_stream.read().decode('utf-8').splitlines(keepends=True)
+                    b_blob = diff_item.b_blob.data_stream.read().decode('utf-8').splitlines(keepends=True)
+                    diff = difflib.unified_diff(a_blob, b_blob, lineterm='')
+                    patch = '\n'.join(diff)
+                    patches_dict[diff_item.a_path] = patch
+                    for line in patch.split('\n'):
+                        if line.startswith('+') and not line.startswith('+++'):
+                            additions += 1
+                        elif line.startswith('-') and not line.startswith('---'):
+                            deletions += 1
+                elif diff_item.a_blob:
+                    deletions += sum(1 for _ in diff_item.a_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
+                elif diff_item.b_blob:
+                    additions += sum(1 for _ in diff_item.b_blob.data_stream.read().decode('utf-8').splitlines(keepends=True))
+
+            lines_impacted = additions + deletions
+            logging.info(f"project_id: {project_id}, added_commits: {added_commits}, lines_impacted: {lines_impacted}")
+            request.state.additional_data = {
+                "added_commits": added_commits,
+                "lines_impacted": lines_impacted
+            }
+        else:
             repo = github.get_repo(repo_name)
             git_diff = repo.compare(base_branch, branch_name)
             added_commits = git_diff.total_commits
@@ -182,31 +288,31 @@ def get_blast_radius_details(
                 "lines_impacted": lines_impacted
             }
             patches_dict = {file.filename: file.patch for file in git_diff.files if file.patch}
-        except Exception as exp:
-            raise HTTPException(status_code=400, detail="Repository not found")
-        finally:
-            if project_details is not None:
-                directory = project_details["directory"]
-                identifiers = []
-                try:
-                    identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
-                except Exception as e:
-                    logging.error(f"project_id: {project_id}, error: {str(e)}")
-                    if "path not in the working tree" in str(e):
-                        base_branch = "main"
-                        identifiers = get_updated_function_list(patches_dict, directory, repo, branch_name)
-                if identifiers.count == 0:
+
+
+    except Exception:
+        raise HTTPException(status_code=400, detail=repo_not_found_message)
+    finally:
+        if project_details is not None:
+            directory = project_details["directory"]
+            identifiers = []
+            try:
+                identifiers = get_updated_function_list(patches_dict, directory, repo_details, branch_name)
+            except Exception as e:
+                logging.error(f"project_id: {project_id}, error: {str(e)}")
+                if "path not in the working tree" in str(e):
+                    base_branch = "main"
+                    identifiers = get_updated_function_list(patches_dict, directory, repo_details, branch_name)
+            if len(identifiers) == 0:
+                if github:
                     github.close()
-                    return []
-                paths = get_paths_from_identifiers(
-                    identifiers, directory, project_details["id"]
-                )
+                return []
+            paths = get_paths_from_identifiers(identifiers, directory, project_details["id"])
+            if github:
                 github.close()
-                return paths
-    else:
-        raise HTTPException(status_code=400, detail="Project Details not found.")
+            return paths
 
-
+    
 @api_router.get("/endpoints/flow/graph")
 def get_flow_graph(
         project_id: int, endpoint_id: str, user=Depends(check_auth)

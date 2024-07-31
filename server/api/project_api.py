@@ -1,6 +1,7 @@
 import logging
 import os
 from typing import Optional
+from dotenv import load_dotenv
 
 import requests
 from fastapi import Depends, HTTPException
@@ -12,11 +13,16 @@ from server.auth import check_auth
 from server.projects import ProjectManager
 from server.utils.APIRouter import APIRouter
 
+load_dotenv(override=True)
+
 api_router_project = APIRouter()
 project_manager = ProjectManager()
-github = Github(os.environ["GITHUB_PRIVATE_KEY"])
 
-
+if os.getenv("isDevelopmentMode") == "enabled":
+    github = None
+else:
+    github = Github(os.getenv("GITHUB_PRIVATE_KEY"))
+    
 def get_github_client(repo_name: str):
     private_key = (
         "-----BEGIN RSA PRIVATE KEY-----\n"

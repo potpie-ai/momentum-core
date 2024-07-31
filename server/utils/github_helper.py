@@ -49,7 +49,9 @@ class GithubService:
         try:
             project_id = node["project_id"]
             project_manager = ProjectManager()
-            repo_name, branch_name = project_manager.get_repo_and_branch_name(project_id=project_id)
+            repo_details = project_manager.get_repo_and_branch_name(project_id=project_id)
+            repo_name = repo_details[0]
+            branch_name = repo_details[1]
 
             file_path = node["id"].split(':')[0].lstrip('/')
             start_line = node["start"]
@@ -72,9 +74,8 @@ class GithubService:
             method_content = '\n'.join(method_lines)
         except Exception as e:
             logger.error(f"An error occurred: {e}", exc_info=True)
-        finally:
-            github.close()
-            return method_content
+
+        return method_content
         
     @staticmethod
     def comment_on_pr(repo_name, issue_number, comment, installation_auth):

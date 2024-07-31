@@ -1,5 +1,5 @@
 from firebase_admin import auth
-from loguru import logger
+import logging
 
 
 def check_auth(jwt: str):
@@ -9,5 +9,5 @@ def check_auth(jwt: str):
         return user["user_id"]
 
     except Exception as e:
-        logger.warning(f"{log_prefix} {str(e)}")
+        logging.warning(f"{log_prefix} {str(e)}")
         raise Exception("User not authorised")
