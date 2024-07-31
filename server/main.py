@@ -80,8 +80,10 @@ def check_and_set_env_vars():
 
 if os.getenv("isDevelopmentMode") == "enabled":
     setup_dummy_user()
+else:
+    firebase_init()
 
-firebase_init()
+    
 setup_project_dir()
 check_and_set_env_vars()
 

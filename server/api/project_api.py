@@ -17,13 +17,11 @@ load_dotenv(override=True)
 
 api_router_project = APIRouter()
 project_manager = ProjectManager()
-github_app_id = os.getenv("GITHUB_APP_ID")
 
-
-if github_app_id is not None:
-    github = Github(os.getenv("GITHUB_PRIVATE_KEY"))
-else:
+if os.getenv("isDevelopmentMode") == "enabled":
     github = None
+else:
+    github = Github(os.getenv("GITHUB_PRIVATE_KEY"))
     
 def get_github_client(repo_name: str):
     private_key = (

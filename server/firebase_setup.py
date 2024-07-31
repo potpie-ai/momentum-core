@@ -26,8 +26,4 @@ def firebase_init():
             logging.error(f"Error loading Firebase service account from local file: {e}")
             return  # Exit the function if credentials cannot be loaded
 
-    try:
-        firebase_admin.initialize_app(cred)
-        logging.info("Firebase app initialized successfully.")
-    except Exception as e:
-        logging.error(f"Error initializing Firebase app: {e}")
+    firebase_admin.initialize_app(cred)
