@@ -29,7 +29,10 @@
 
 <p align="center">
   <br />
-  <a href="https://docs.momentum.sh" rel="dofollow"><strong>Explore the docs »</strong></a>
+  <a href="https://app.momentum.sh" rel="dofollow"><strong>Get started in a single click!</strong></a>
+  <br />
+  <br />
+  <a href="https://docs.momentum.sh" rel="dofollow">Explore the docs</a>
   <br />
 
 <br/>
