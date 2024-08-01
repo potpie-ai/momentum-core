@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://pypi.org/project/momentum-cli/">
     <img src="https://img.shields.io/pypi/v/momentum-cli" alt="pypi package">
-  </a!
+  </a>
   <a href="https://github.com/getmomentum/momentum-core/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/getmomentum/momentum-core" alt="Apache 2.0">
   </a>
