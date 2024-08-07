@@ -102,6 +102,6 @@ def health_check():
 
 # This ensures that the driver is properly closed when your application is shutting down, and system resources are released.
 def shutdown():
-    Neo4jDriverSingleton.close()
+    Neo4jDriverSingleton.close_instance()
 
 atexit.register(shutdown)
