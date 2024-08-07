@@ -1,3 +1,4 @@
+import atexit
 import os
 import sentry_sdk
 import logging
@@ -7,6 +8,8 @@ from server.firebase_setup import firebase_init
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from server.utils.graph_db_helper import Neo4jDriverSingleton
 
 load_dotenv(override=True)
 
@@ -96,3 +99,9 @@ app.include_router(router=webhook_router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+# This ensures that the driver is properly closed when your application is shutting down, and system resources are released.
+def shutdown():
+    Neo4jDriverSingleton.close()
+
+atexit.register(shutdown)

@@ -13,7 +13,9 @@ class Neo4jDriverSingleton:
         if cls._instance is None:
             cls._instance = GraphDatabase.driver(
                 neo4j_config['uri'],
-                auth=(neo4j_config['username'], neo4j_config['password'])
+                auth=(neo4j_config['username'], neo4j_config['password']),
+                max_connection_lifetime = neo4j_config['max_connection_lifetime'],
+                max_connection_pool_size = neo4j_config['max_connection_pool_size']
             )
         return cls._instance
     
